@@ -20,6 +20,7 @@ LINE_PX = 3       # rasterised stroke width; closes hairline gaps
 TOP_BAND = 25     # units below the topmost stroke that count as the open top
 MIN_AREA = 0.02   # a region must cover at least this share of the device box ...
 MIN_HEIGHT = 0.15 # ... and this share of its height (skips feet and stand rings)
+SPILL_DEPTH = 0.05  # a hollow reached from above deeper than this share of the height is a branch
 
 
 def _trace(mask, w, h):
@@ -61,6 +62,49 @@ def _simplify(pts, tol):
     return [p for p, k in zip(pts, keep) if k]
 
 
+def _rising(region, sx, sy, w, h):
+    """Restrict a region to what liquid poured in at (sx, sy) can reach: the water rises row by
+    row; once it would run DOWN into a branch that hangs from higher up (the pressure-equalising
+    tube of a dropping funnel, a descending side arm), the vessel overflows there and the
+    region ends at that level."""
+    px = region.load()
+    inr = lambda x, y: 0 <= x < w and 0 <= y < h and px[x, y] == 255
+    if not inr(sx, sy): return region
+    comp = {(sx, sy)}
+    deep = max(15, int(SPILL_DEPTH * h))
+    def pocket(x0, y0, level):                            # small hollow below the level, or None
+        seen = {(x0, y0)}; todo = [(x0, y0)]
+        while todo:
+            x, y = todo.pop()
+            if y - level > deep: return None
+            for nx, ny in ((x+1, y), (x-1, y), (x, y+1), (x, y-1)):
+                if ny > level and (nx, ny) not in seen and (nx, ny) not in comp and inr(nx, ny):
+                    seen.add((nx, ny)); todo.append((nx, ny))
+        return seen
+    def grow(level, stack, spill):                        # BFS within rows >= level
+        new = []
+        while stack:
+            x, y = stack.pop()
+            for nx, ny in ((x+1, y), (x-1, y), (x, y+1), (x, y-1)):
+                if ny < level or (nx, ny) in comp or not inr(nx, ny): continue
+                if spill and ny > level:                  # runs down into a hollow from above
+                    small = pocket(nx, ny, level)
+                    if small is None: return new, True    # a real branch: the vessel overflows
+                    comp.update(small); new += small; continue   # letters, rims: just fill them
+                comp.add((nx, ny)); new.append((nx, ny)); stack.append((nx, ny))
+        return new, False
+    grow(sy, [(sx, sy)], False)                           # the pool at the seed's own level
+    for level in range(sy - 1, -1, -1):
+        seeds = [(x, level + 1) for x in range(w) if (x, level + 1) in comp and inr(x, level)]
+        if not seeds: break                               # closed above: full
+        new, spilled = grow(level, seeds, True)
+        if spilled:
+            comp.difference_update(new); break
+    out = Image.new('L', (w, h), 0); o = out.load()
+    for x, y in comp: o[x, y] = 255
+    return out
+
+
 def _region_above(img, done, x, y, w, h):
     """Walk up from a standing surface; the first enclosed area of real size is the vessel
     (feet and stand rings - small or flat closed areas - are skipped)."""
@@ -75,6 +119,7 @@ def _region_above(img, done, x, y, w, h):
         if bb is None or bb[0] == 0 or bb[1] == 0 or bb[2] >= w or bb[3] >= h:
             return None                                   # leaked to the border: gap in the drawing
         if sum(region.histogram()[255:]) < MIN_AREA * w * h or bb[3] - bb[1] < MIN_HEIGHT * h: continue
+        region = _rising(region, x, yy, w, h)
         # enclosed labels / scale marks belong to the liquid region
         outside = region.copy(); ImageDraw.floodfill(outside, (0, 0), 64)
         return outside.point(lambda v: 0 if v == 64 else 255)
