@@ -1,0 +1,139 @@
+{
+ "format": "snapparatus",
+ "version": 1,
+ "lineWidth": "normal",
+ "parts": [
+  {
+   "id": 1,
+   "dev": "extrakt1/47-21",
+   "x": -776,
+   "y": -739,
+   "a": 0,
+   "f": false,
+   "fill": {
+    "on": true,
+    "level": 47,
+    "color": "#f2c14e"
+   }
+  },
+  {
+   "id": 3,
+   "dev": "derived/reducer-45-29",
+   "x": -669,
+   "y": -1813,
+   "a": 0,
+   "f": false,
+   "fill": null
+  },
+  {
+   "id": 4,
+   "dev": "kuehler-1/1-25",
+   "x": -626,
+   "y": -8976,
+   "a": 0,
+   "f": false,
+   "fill": null
+  },
+  {
+   "id": 6,
+   "dev": "ruehren-1/155-7-1",
+   "x": -1748,
+   "y": 8494,
+   "a": 0,
+   "f": false,
+   "fill": null
+  },
+  {
+   "id": 8,
+   "dev": "statmat1/1-13-5",
+   "x": -1444,
+   "y": 10722,
+   "a": 0,
+   "f": false,
+   "fill": null
+  },
+  {
+   "id": 9,
+   "dev": "sammelsu/1-13-46",
+   "x": -2398,
+   "y": 6119,
+   "a": 0,
+   "f": false,
+   "fill": {
+    "on": true,
+    "level": 40,
+    "color": "#7cc4e8"
+   }
+  },
+  {
+   "id": 5,
+   "dev": "kolb-1h/115-87",
+   "x": -1609,
+   "y": 4124,
+   "a": 0,
+   "f": false,
+   "fill": {
+    "on": true,
+    "level": 40,
+    "color": "#f2c14e"
+   }
+  },
+  {
+   "id": 7,
+   "dev": "ruehren-1/63-119",
+   "x": -496,
+   "y": 8009,
+   "a": 0,
+   "f": false,
+   "fill": null
+  },
+  {
+   "id": 10,
+   "dev": "extrakt1/83-21",
+   "x": -594,
+   "y": 735,
+   "a": 0,
+   "f": false,
+   "fill": null
+  }
+ ],
+ "links": [
+  {
+   "p1": 3,
+   "j1": 1,
+   "p2": 1,
+   "j2": 1
+  },
+  {
+   "p1": 4,
+   "j1": 3,
+   "p2": 3,
+   "j2": 0
+  },
+  {
+   "p1": 5,
+   "j1": 1,
+   "p2": 1,
+   "j2": 2
+  },
+  {
+   "p1": 8,
+   "j1": 1,
+   "p2": 6,
+   "j2": 1
+  },
+  {
+   "p1": 9,
+   "j1": 0,
+   "p2": 6,
+   "j2": 0
+  },
+  {
+   "p1": 10,
+   "j1": 0,
+   "p2": 1,
+   "j2": 0
+  }
+ ],
+ "notes": []
+}

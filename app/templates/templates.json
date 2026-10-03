@@ -1,5 +1,6 @@
 [
-  { "file": "reflux-dropping-funnel.snapparatus.json", "de": "Rückfluss mit Tropftrichter und Thermometer", "en": "Reflux with dropping funnel and thermometer", "start": true },
-  { "file": "reflux.snapparatus.json", "de": "Rückfluss", "en": "Reflux" },
-  { "file": "vacuum-filtration.snapparatus.json", "de": "Vakuumfiltration", "en": "Vacuum filtration" }
+  {"file": "reflux-dropping-funnel.snapparatus.json", "de": "Rückfluss mit Tropftrichter und Thermometer", "en": "Reflux with dropping funnel and thermometer", "start": true},
+  {"file": "reflux.snapparatus.json", "de": "Rückfluss", "en": "Reflux"},
+  {"file": "vacuum-filtration.snapparatus.json", "de": "Vakuumfiltration", "en": "Vacuum filtration"},
+  {"file": "soxhlet-extraction.snapparatus.json", "de": "Soxhlet-Extraktion", "en": "Soxhlet extraction"}
 ]
