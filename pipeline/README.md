@@ -111,7 +111,9 @@ end to end, invisible points dropped) plus `<text>` labels. Anchor points are in
 - `path`: the name as a hierarchy (section → column header → caption), suitable for a
   catalogue tree.
 - `ns` (device): joint size mentioned in the drawing's labels, informational only.
-- `snaps`: anchor points in SVG coordinates (empty for `DEST-0`):
+- `snaps`: anchor points in SVG coordinates (empty for `DEST-0`). Vessels the original left
+  without a bottom anchor (some round-bottom flasks) get one at their lowest point,
+  marked `"added": true`:
   - `type`: `socket` (female joint), `cone` (male joint), `base` (standing surface of a
     vessel), `support` (where a vessel stands or sits: `"shape"` is `flat` for lab jacks and
     stirrer plates, `bowl` for heating mantles, `ring` for cork rings), `hose` (hose olive tip)

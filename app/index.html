@@ -1,22 +1,89 @@
 <!doctype html>
-<html lang="en">
+<html lang="de">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Snapparatus</title>
-  <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center;
-           font-family: system-ui, sans-serif; background: #fafafa; color: #222; }
-    main { max-width: 32rem; padding: 2rem; text-align: center; }
-    h1 { margin-bottom: .25rem; }
-    p { line-height: 1.5; color: #555; }
-  </style>
+  <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <main>
-    <h1>Snapparatus</h1>
-    <p>Draw laboratory glassware setups for teaching.<br>Coming soon.</p>
-    <p><a href="https://github.com/RainiHeini/Snapparatus">Project on GitHub</a></p>
-  </main>
+  <header class="top">
+    <div class="logo"><span class="mark"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/></svg></span>Snapparatus</div>
+    <button class="btn" data-act="new"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg><span data-t="new"></span></button>
+    <button class="btn" data-act="open"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-t="open"></span></button>
+    <button class="btn" data-act="save"><svg viewBox="0 0 24 24"><path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h8"/><path d="M7 21v-7h10v7"/></svg><span data-t="save"></span></button>
+    <span class="sep"></span>
+    <button class="btn ico" data-act="undo" data-tt="undo"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+    <button class="btn ico" data-act="redo" data-tt="redo"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
+    <span class="sep"></span>
+    <button class="btn soon" data-act="text" data-tt="soon"><svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg><span data-t="text"></span></button>
+    <button class="btn soon" data-act="arrow" data-tt="soon"><svg viewBox="0 0 24 24"><path d="M5 19 19 5"/><path d="M9 5h10v10"/></svg><span data-t="arrow"></span></button>
+    <button class="btn soon" data-act="templates" data-tt="soon"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span data-t="templates"></span></button>
+    <span class="grow"></span>
+    <div class="menu-wrap">
+      <button class="btn outline" data-act="exportmenu"><svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg><span data-t="export"></span></button>
+      <div class="menu" id="exportMenu" hidden>
+        <button data-act="exportSvg" data-t="exportSvg"></button>
+        <button data-act="exportPng" data-t="exportPng"></button>
+      </div>
+    </div>
+    <button class="btn primary" data-act="copy"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"/></svg><span data-t="copy"></span></button>
+    <span class="sep"></span>
+    <div class="menu-wrap">
+      <button class="btn ico" data-act="settings" data-tt="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+      <div class="menu wide" id="settingsMenu" hidden>
+        <label><span data-t="catalogPos"></span><select id="posCatalog"></select></label>
+        <label><span data-t="propsPos"></span><select id="posProps"></select></label>
+      </div>
+    </div>
+    <div class="lang"><button data-lang="de">DE</button><button data-lang="en">EN</button></div>
+  </header>
+
+  <div id="main">
+    <div class="slot" id="slotTop"></div>
+    <div class="row">
+      <div class="slot" id="slotLeft"></div>
+      <div id="canvasWrap">
+        <svg id="canvas" tabindex="0">
+          <defs id="defs"></defs>
+          <g id="world"><g id="fills"></g><g id="parts"></g><g id="overlay"></g></g>
+        </svg>
+        <div class="empty" id="emptyHint" data-t="emptyHint"></div>
+        <div class="zoom">
+          <button class="btn ico" data-act="zoomOut"><svg viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+          <span id="zoomLabel">100 %</span>
+          <button class="btn ico" data-act="zoomIn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+          <button class="btn ico" data-act="zoomFit" data-tt="zoomFit"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+        </div>
+        <div class="toast" id="toast" hidden></div>
+      </div>
+      <div class="slot" id="slotRight"></div>
+    </div>
+  </div>
+
+  <aside class="panel" id="catalog">
+    <nav class="rail" id="rail"></nav>
+    <div class="catbody" id="catbody">
+      <div class="cathead">
+        <label class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="search" type="search"></label>
+        <button class="btn ico collapse" data-act="collapseCatalog" data-tt="collapse"><svg viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></svg></button>
+      </div>
+      <div class="cattitle" id="catTitle"></div>
+      <div class="subcats" id="subcats"></div>
+      <div class="tiles" id="tiles"></div>
+    </div>
+  </aside>
+
+  <aside class="panel" id="props">
+    <div class="propshead">
+      <b id="propsTitle"></b>
+      <button class="btn ico collapse" data-act="collapseProps" data-tt="collapse"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+    </div>
+    <div id="propsBody"></div>
+  </aside>
+
+  <input type="file" id="fileInput" accept=".json,.svg,application/json,image/svg+xml" hidden>
+  <script src="data/devices.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>

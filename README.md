@@ -4,8 +4,8 @@ Free browser-based tool for drawing laboratory glassware setups for teaching. Sn
 500+ detailed apparatus parts and put the result into your lab manual, worksheet or
 PowerPoint.
 
-> **Status:** early development. The device library has been extracted; the app itself is
-> not usable yet.
+> **Status:** early prototype. Open `app/index.html` in Chrome, Edge or Firefox to try it -
+> no installation needed. Labels, arrows, templates and pouring are still to come.
 
 ## What it will do
 
@@ -24,11 +24,11 @@ PowerPoint.
 
 1. ~~**Device data:** stable IDs, joint types and sizes, clean vector paths, inner outlines for
    fillable vessels.~~ Done.
-2. **Core app:** catalogue, canvas, snapping, copy/paste and export, project files.
+2. **Core app** (prototype): catalogue, canvas, joint-aware snapping with automatic alignment,
+   copy/paste and export, project files.
 3. **Teaching features:** labels and arrows, liquid fills, templates for standard setups
    (reflux, distillation, filtration …).
-4. **Later:** joint-aware snapping (only matching joint types and sizes connect, parts
-   rotate to the angle of a side arm).
+4. **Later:** stand with sliding clamps, English device names.
 
 ## Repository layout
 

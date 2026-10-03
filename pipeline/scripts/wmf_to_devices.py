@@ -292,6 +292,8 @@ SUPPORT_PALETTES = {'STATMAT1': 'flat', 'RUEHREN-1': 'flat', 'HEIZEN-1': 'bowl'}
 FILL_PALETTES = {'BECHERGL', 'DESTIL-1', 'DEWARGEF', 'EINLEIT1', 'ERLENMEY', 'EXTRAKT1', 'FLASCHEN',
                  'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'MESSZYLI', 'MISCHZYL', 'SAMMELSU', 'STANDZYL',
                  'TRENNEN1', 'TRENNEN2', 'TROPFTRI'}
+# vessel palettes where a missing bottom anchor is added at the lowest point
+ADD_BASE_PALETTES = {'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'FLASCHEN', 'ERLENMEY', 'BECHERGL', 'TRENNEN1'}
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
 FRAME_TOL = 60          # 0.6 mm: tolerance for "touches the edge"
 MIN_SEG = 200           # 2 mm: shorter axis-parallel pieces are never frames
@@ -756,7 +758,18 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                                    else SUPPORT_PALETTES.get(pal))
             for sp in snaps:                                  # MINILAB parts use screw threads, not NS joints
                 if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
-            vessel = (fill.vessel_regions(local, snaps, W, H, hanging=pal in ('TROPFTRI', 'EXTRAKT1'))
+            hanging = pal in ('TROPFTRI', 'EXTRAKT1')
+            if pal in ADD_BASE_PALETTES and not any(sp['type'] in ('base', 'support') for sp in snaps):
+                # vessels the original left without a bottom anchor (e.g. some round-bottom flasks):
+                # add one at the lowest point, so they can stand on supports and be filled - but only
+                # if the bottom is broad like a vessel's, not the tip of a tube
+                low = max(py for st in local for _, py in st)
+                xs = [px for st in local for px, py in st if py >= low - 5]
+                band = [px for st in local for px, py in st if py >= low - 0.03 * H]
+                if max(band) - min(band) >= 0.3 * (W - 80):
+                    snaps.append({'x': round(sum(xs) / len(xs), 1), 'y': round(low, 1), 'type': 'base', 'dir': 90,
+                                  'width': None, 'ns': None, 'added': True})
+            vessel = (fill.vessel_regions(local, snaps, W, H, hanging=hanging)
                       if pal in FILL_PALETTES and 'Kühler' not in name else None)   # coolant jackets are not vessels
             # stable ID: palette + cell position in the original (mm) + index within the cell
             dev_id = f"{pal.lower()}/{ci['rect'][0]/100:.0f}-{ci['rect'][1]/100:.0f}" + (f"-{j}" if len(devs) > 1 else '')
