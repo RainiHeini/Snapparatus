@@ -21,8 +21,8 @@
         <h3>Gerätezeichnungen</h3>
         <p>Alle Gerätezeichnungen stammen aus <b>LaboBib</b>, der Laborgerätebibliothek von <b>Dr. R. Rensch</b> (© 1998),
         für das Zeichenprogramm <b>C-Design</b> (© 1988–1998 FoBasoft GmbH, © 2010 Dr. J. Bauer, Dr. E. Fontain).
-        Beide wurden als Freeware veröffentlicht. Lizenztext des Originals:</p>
-        <blockquote>${'Das Programm C-Design und die Laborgerätebibliothek LaboBib sind Freeware und können frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung kein Entgelt verlangt wird. Eine Distribution des Programms auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung der Autoren zulässig.'}</blockquote>
+        Beide wurden als Freeware veröffentlicht. Lizenztext des Originals (wörtlich, aus <i>License.txt</i>):</p>
+        <blockquote>${'Das Programm C-Design und die Laborgerätebebliothek LaboBib sind Freeware und können frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung kein Entgelt verlangt wird.<br>Eine Distribution des Programms auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung der Autoren zulässig.<br><br>Haftungsausschluss<br>Es kann weder eine Garantie noch eine juristische Verantwortung oder irgendeine Haftung für die Folgen, die durch eine fehlerhafte Bedienung oder durch Programmfehler entstehen können, übernommen werden.'}</blockquote>
         <h3>Programm</h3>
         <p>Der Programmcode von Snapparatus steht unter der MIT-Lizenz. Sie gilt nicht für die Gerätezeichnungen.</p>
         <p><a href="https://github.com/RainiHeini/Snapparatus" target="_blank" rel="noopener">Projekt auf GitHub</a></p>`,
@@ -54,10 +54,10 @@
         <p>All equipment drawings come from <b>LaboBib</b>, the laboratory equipment library by <b>Dr. R. Rensch</b> (© 1998),
         for the drawing program <b>C-Design</b> (© 1988–1998 FoBasoft GmbH, © 2010 Dr. J. Bauer, Dr. E. Fontain).
         Both were released as freeware. Original licence text (German, authoritative):</p>
-        <blockquote lang="de">${'Das Programm C-Design und die Laborgerätebibliothek LaboBib sind Freeware und können frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung kein Entgelt verlangt wird. Eine Distribution des Programms auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung der Autoren zulässig.'}</blockquote>
+        <blockquote lang="de">${'Das Programm C-Design und die Laborgerätebebliothek LaboBib sind Freeware und können frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung kein Entgelt verlangt wird.<br>Eine Distribution des Programms auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung der Autoren zulässig.<br><br>Haftungsausschluss<br>Es kann weder eine Garantie noch eine juristische Verantwortung oder irgendeine Haftung für die Folgen, die durch eine fehlerhafte Bedienung oder durch Programmfehler entstehen können, übernommen werden.'}</blockquote>
         <p>Unofficial translation: the program C-Design and the laboratory equipment library LaboBib are freeware and may be
         used and redistributed freely, as long as no fee is charged for providing, using or distributing them. Distribution
-        of the program on media available for a fee is only permitted with the consent of the authors.</p>
+        of the program on media available for a fee is only permitted with the consent of the authors. Disclaimer: no warranty, legal responsibility or any liability whatsoever can be accepted for consequences arising from incorrect operation or from program errors.</p>
         <h3>Program</h3>
         <p>The Snapparatus source code is licensed under the MIT licence. It does not apply to the equipment drawings.</p>
         <p><a href="https://github.com/RainiHeini/Snapparatus" target="_blank" rel="noopener">Project on GitHub</a></p>`,
