@@ -34,7 +34,7 @@ PowerPoint.
 | Path | Contents |
 |---|---|
 | `app/` | the browser app (static HTML/CSS/JS), published to GitHub Pages |
-| `pipeline/` | scripts that extract the device library from the original files ([documentation, German](pipeline/README.md)) |
+| `pipeline/` | scripts that extract the device library from the original files ([documentation](pipeline/README.md)) |
 | `pipeline/source/` | original LaboBib/C-Design files and manuals |
 
 ## Credits and licences

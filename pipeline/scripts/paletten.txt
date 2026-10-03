@@ -1,5 +1,5 @@
-# Echte LaboBib-Geraete-Paletten (eine pro Zeile). Nicht gelistet = Tutorial-/Beispiel-
-# Zeichnungen von C-Design (EXAMP*, ORBITAL*, IONEN, PAGODANE, TENSIDE, ...), keine Geraete.
+# Real LaboBib apparatus palettes (one per line). Not listed = tutorial/example
+# drawings from C-Design (EXAMP*, ORBITAL*, IONEN, PAGODANE, TENSIDE, ...), no devices.
 ADAPTER
 BECHERGL
 DEST-0
@@ -33,6 +33,6 @@ TROCKENR
 TROCKN-1
 TROPFTRI
 VERTEIL1
-# unsicher, mit pruefen:
+# uncertain, check as well:
 MINILAB
 GEFSYMB

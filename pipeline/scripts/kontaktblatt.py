@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-kontaktblatt.py - Sichtkontrolle: alle Geraete mit Namen auf HTML-Blaettern (+ PNG per Edge).
+kontaktblatt.py - Visual check ("contact sheet"): all devices with names on HTML sheets (+ PNG via Edge).
 
-  python kontaktblatt.py [devices_ordner] [ausgabeordner]
+  python kontaktblatt.py [devices_folder] [output_folder]
 
-Defaults: pipeline/out/devices -> pipeline/out/kontaktblatt. Die PNGs entstehen mit dem
-Headless-Modus von Microsoft Edge (falls vorhanden); sonst nur HTML.
+Defaults: pipeline/out/devices -> pipeline/out/kontaktblatt. The PNGs are created with
+Microsoft Edge's headless mode (if available); otherwise HTML only.
 """
 import os, sys, json, glob, html, subprocess
 
@@ -42,7 +42,7 @@ def main():
             subprocess.run([EDGE, '--headless=new', '--disable-gpu', '--hide-scrollbars',
                             f'--window-size=1600,{rows*205+10}', f'--screenshot={page[:-5]}.png',
                             'file:///' + page.replace(os.sep, '/')], capture_output=True)
-    print(f"{len(items)} Geraete auf {sheets} Blaettern -> {dst}")
+    print(f"{len(items)} devices on {sheets} sheets -> {dst}")
 
 if __name__ == '__main__':
     main()
