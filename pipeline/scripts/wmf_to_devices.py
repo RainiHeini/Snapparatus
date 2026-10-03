@@ -316,8 +316,8 @@ _SAMMELSU = [
     'Reagenzglas mit Bodensatz', 'Glasrohrstück, kurz', 'Abdampfschale mit Feststoff',
     'Gummistopfen mit Glasrohr', 'Gummistopfen mit Glasrohr', 'Gummistopfen', 'Pasteurpipette',
     'Kapillare mit Stopfen', 'Glasrohrstück', 'Gaseinleitungsrohr mit Stopfen', 'Pipettenhütchen',
-    'Pasteurpipette', 'Kristallisierschale', 'Pipettenhütchen', 'Gummistopfen', 'Gummistopfen',
-    'Gummistopfen', 'Gummistopfen', 'Gaseinleitungsrohr mit Stopfen', 'Reagenzglas mit Bodensatz',
+    'Pasteurpipette', 'Kristallisierschale', 'Pipettenhütchen', 'Gummistopfen mit Bohrung',
+    'Gummistopfen mit Bohrung', 'Gaseinleitungsrohr mit Stopfen', 'Reagenzglas mit Bodensatz',
     'Spritze', 'Reagenzglas', 'Glasrohr, gebogen, mit Stopfen', 'Spritzenzylinder', 'Spritzenkolben',
     'Spritzenzylinder', 'Spritzenkolben', 'Kapillare mit Stopfen', 'Gummistopfen', 'Schüssel',
     'Reagenzglas, umgedreht', 'Reagenzglas mit Feststoff', 'Gummistopfen, klein',
@@ -689,8 +689,28 @@ def split_collage(ds, tol=25, res=10, min_size=150):
         return k
     out = {}
     for k, g in enumerate(groups): out.setdefault(root(k), []).extend(g)
+    parts = list(out.values())
+    # halves of a bored stopper in section: two hatched pieces of the same width right above each
+    # other, whose facing edges are straight over the full width (the walls of the bore), are one part
+    def flat_edge(g, y, w):                          # extent of the strokes lying along height y
+        xs = [x for i in g for x, yy in ds[i] if abs(yy - y) <= 0.03 * w]
+        return (max(xs) - min(xs)) if xs else 0
+    merged = True
+    while merged:
+        merged = False
+        for a in range(len(parts)):
+            for b in range(a + 1, len(parts)):
+                A, B = _bbox([ds[i] for i in parts[a]]), _bbox([ds[i] for i in parts[b]])
+                if A[1] > B[1]: a, b, A, B = b, a, B, A  # a above b
+                wa, wb, ha, hb = A[2]-A[0], B[2]-B[0], A[3]-A[1], B[3]-B[1]
+                gap = B[1] - A[3]
+                if (abs(A[0] - B[0]) <= 0.05 * wa and abs(wa - wb) <= 0.05 * max(wa, wb)
+                        and 0 < gap <= 0.45 * min(ha, hb) and len(parts[a]) >= 6 and len(parts[b]) >= 6
+                        and flat_edge(parts[a], A[3], wa) >= 0.9 * wa and flat_edge(parts[b], B[1], wb) >= 0.9 * wb):
+                    parts[min(a, b)] += parts.pop(max(a, b)); merged = True; break
+            if merged: break
     def size(g): x0, y0, x1, y1 = _bbox([ds[i] for i in g]); return max(x1-x0, y1-y0)
-    return [g for g in out.values() if size(g) >= min_size]
+    return [g for g in parts if size(g) >= min_size]
 
 def _area(bb): return (bb[2]-bb[0]) * (bb[3]-bb[1])
 
@@ -1084,6 +1104,12 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         collage = bool(framed) or pal in COLLAGE_PALETTES
         devs = sorted(split_cell(ci['strokes'], collage, framed), key=lambda ds: (_bbox(ds)[0], _bbox(ds)[1]))   # stable order
         bbs = [_bbox(ds) for ds in devs]
+        text_owner = {}                               # collage: a text belongs to the part whose lines are nearest
+        if collage:
+            for T in texts:
+                if text_home[T] != ci['idx']: continue
+                d, j = min((stroke_dist(ds, T[0], T[1] - T[3] / 2), j) for j, ds in enumerate(devs))
+                if d <= 400: text_owner[T] = j
         # snap point -> exactly ONE device: the nearest (inside/<= 3 mm from the bounding box,
         # on a tie the one with the nearest stroke). Never one point in two devices.
         owner = {}
@@ -1099,6 +1125,7 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
             mx, my = (0, 0) if collage else ((gx1-gx0)*0.12, 40)   # a collage's captions lie next to the parts
             dt = [T for T in texts if text_home[T] == ci['idx'] and gx0-mx <= T[0] <= gx1+mx
                   and gy0-my <= T[1] <= gy1+my and T not in label_texts
+                  and (not collage or text_owner.get(T) == j)        # in a collage: the part nearest to it
                   and not (collage and re.fullmatch(r'[A-ZÄÖÜ][A-ZÄÖÜ.\- ]{3,}', T[2].strip()))]   # collage captions
             vol = next((T[2] for T in dt if re.search(r'\d\s*(mL|ml|Liter|L)', T[2])), '')
             ns = next((re.search(r'NS\s?\d+', T[2]).group() for T in dt if re.search(r'NS\s?\d+', T[2])), '')
