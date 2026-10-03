@@ -415,6 +415,11 @@
       }
       const [lip, high] = a[1] >= b[1] ? [a, b] : [b, a];
       const op = { o, lip, high, neck: o.entry.length === 1, entry: Math.max(...o.entry.map(([x, y]) => toWorld(p, x, y)[1])) };
+      if (op.neck) {                                    // closed when something sits in its socket (stopper, condenser ...)
+        const mx = (o.rim[0] + o.rim[2]) / 2, my = (o.rim[1] + o.rim[3]) / 2;
+        const j = d.snaps.findIndex(sn => sn.type === 'socket' && Math.abs(sn.x - mx) < 3 && Math.abs(sn.y - my) < 3);
+        op.closed = j >= 0 && used(p.id, j);
+      }
       if (op.neck) {
         const e = toWorld(p, ...o.entry[0]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
         op.e = e; op.e1 = [e[0] + lip[0] - mid[0], e[1] + lip[1] - mid[1]]; op.e2 = [e[0] + high[0] - mid[0], e[1] + high[1] - mid[1]];
@@ -423,11 +428,12 @@
       return op;
     });
     // it pours through every opening whose lower edge lies below the surface
-    const outs = ops.filter(op => want < op.sill - 5);
-    if (!outs.length) {                                 // no pouring: the liquid stops where the lowest neck begins
+    // a closed neck (something sits in its socket) takes no liquid and lets none out
+    const below = ops.filter(op => want < op.sill - 5), outs = below.filter(op => !op.closed);
+    if (!below.length) {                                // no pouring: the liquid stops where the lowest neck begins
       const cap = Math.max(-Infinity, ...ops.map(op => op.entry));
       if (lvl < cap - 5) lvl = cap;
-    } else {
+    } else if (outs.length) {
       // the surface stands where the fill level puts it (above an open top: not absurdly high)
       for (const op of outs) if (!op.neck) lvl = Math.max(lvl, op.lip[1] - 0.3 * Math.hypot(op.high[0] - op.lip[0], op.high[1] - op.lip[1]));
       for (const op of outs) if (op.neck) {             // a neck it pours through fills up to the surface too
