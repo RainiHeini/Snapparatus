@@ -28,6 +28,7 @@ button { font: inherit; color: inherit; }
 .btn.primary:hover { background: #0c6a78; }
 .btn.outline { border-color: var(--line); }
 .btn.soon { opacity: .45; }
+.btn.on { background: var(--accent-soft); color: var(--accent); }
 .btn.danger { color: var(--danger); }
 .sep { width: 1px; height: 22px; background: var(--line); margin: 0 6px; }
 .grow { flex: 1; }
@@ -128,10 +129,20 @@ button { font: inherit; color: inherit; }
 #world path { stroke-width: var(--sw, 14); }
 .part { cursor: grab; }
 .part .hit { fill: transparent; }
+.fill { pointer-events: none; }
 .dragging .part, .dragging { cursor: grabbing; }
 .sel-box { fill: none; stroke: var(--select); stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; stroke-width: 1.5; pointer-events: none; }
 .snap-dot { fill: #fff; stroke: var(--snap); vector-effect: non-scaling-stroke; stroke-width: 2; pointer-events: none; }
 .snap-dot.active { fill: var(--snap); }
+.note { cursor: grab; }
+.note .hit { fill: transparent; stroke: transparent; }
+.note line.hit { stroke-width: 16px; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.handle { fill: #fff; stroke: var(--select); stroke-width: 2; vector-effect: non-scaling-stroke; cursor: move; }
+#canvas.tool-text, #canvas.tool-text * { cursor: text; }
+#canvas.tool-arrow, #canvas.tool-arrow * { cursor: crosshair; }
+.inline-edit { position: absolute; z-index: 5; margin: 0; padding: 0; border: 1px dashed var(--accent); outline: none; resize: none;
+               overflow: hidden; background: rgba(255,255,255,.85); color: #000; font-family: Arial, Helvetica, sans-serif;
+               line-height: 1.2; white-space: pre; min-width: 1em; }
 .unlink { cursor: pointer; }
 .unlink circle { fill: #fff; stroke: var(--ink); stroke-width: 1.2; filter: drop-shadow(0 1px 2px rgba(0,0,0,.25)); }
 #world .unlink path { fill: none; stroke: var(--ink); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }

@@ -22,6 +22,14 @@
       replaceTitle: 'Datei öffnen?', replaceText: 'Die aktuelle Zeichnung wird durch die Datei ersetzt.',
       cancel: 'Abbrechen', saveFirst: 'Erst speichern', discard: 'Verwerfen', replace: 'Ersetzen', undo: 'Rückgängig (Strg+Z)', redo: 'Wiederholen (Strg+Y)',
       text: 'Text', arrow: 'Pfeil', templates: 'Vorlagen', soon: 'Kommt bald', export: 'Export', copy: 'Kopieren',
+      textTip: 'Beschriftung setzen: auf die Zeichenfläche klicken', arrowTip: 'Pfeil zeichnen: auf der Zeichenfläche ziehen',
+      textMode: 'Auf die Zeichenfläche klicken, um eine Beschriftung zu setzen (Esc: abbrechen).',
+      arrowMode: 'Auf der Zeichenfläche ziehen, um einen Pfeil zu zeichnen (Esc: abbrechen).',
+      label: 'Beschriftung', arrowTitle: 'Pfeil', size: 'Größe', small: 'Klein', medium: 'Mittel', large: 'Groß',
+      editText: 'Text bearbeiten', textHint: 'Doppelklick auf den Text bearbeitet ihn. Fertig: daneben klicken oder Esc.',
+      arrange: 'Anordnung', toFront: 'Nach vorn', toBack: 'Nach hinten',
+      head: 'Spitze', headEnd: 'Am Ende', headBoth: 'Beidseitig', headNone: 'Ohne',
+      arrowHint: 'Die Enden lassen sich ziehen, mit gedrückter Umschalttaste in 15°-Schritten.',
       exportSvg: 'Als SVG speichern', exportPng: 'Als PNG speichern', settings: 'Einstellungen',
       swapSides: 'Seiten tauschen', swapHint: 'Katalog rechts, Eigenschaften links', about: 'Über Snapparatus · Lizenzen',
       credit: 'Zeichnungen: LaboBib © Dr. Rainer Rensch · Lizenz',
@@ -66,6 +74,14 @@
       replaceTitle: 'Open file?', replaceText: 'The current drawing will be replaced by the file.',
       cancel: 'Cancel', saveFirst: 'Save first', discard: 'Discard', replace: 'Replace', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y)',
       text: 'Text', arrow: 'Arrow', templates: 'Templates', soon: 'Coming soon', export: 'Export', copy: 'Copy',
+      textTip: 'Add a label: click on the drawing area', arrowTip: 'Draw an arrow: drag on the drawing area',
+      textMode: 'Click on the drawing area to place a label (Esc: cancel).',
+      arrowMode: 'Drag on the drawing area to draw an arrow (Esc: cancel).',
+      label: 'Label', arrowTitle: 'Arrow', size: 'Size', small: 'Small', medium: 'Medium', large: 'Large',
+      editText: 'Edit text', textHint: 'Double-click the text to edit it. Done: click elsewhere or press Esc.',
+      arrange: 'Arrange', toFront: 'Bring to front', toBack: 'Send to back',
+      head: 'Head', headEnd: 'At the end', headBoth: 'Both ends', headNone: 'None',
+      arrowHint: 'Drag the ends to change the arrow; hold Shift for 15° steps.',
       exportSvg: 'Save as SVG', exportPng: 'Save as PNG', settings: 'Settings',
       swapSides: 'Swap sides', swapHint: 'Catalogue on the right, properties on the left', about: 'About Snapparatus · Licences',
       credit: 'Drawings: LaboBib © Dr. Rainer Rensch · Licence',
@@ -119,13 +135,20 @@
   // ---------------------------------------------------------------- drawing state
   // part: {id, dev, x, y, a (degrees), f (mirrored), fill: {on, level, color}}
   // link: {p1, j1, p2, j2} - joint j1 of part p1 is connected to joint j2 of part p2
-  let state = { parts: [], links: [], next: 1, lineWidth: 'normal' };
+  // note: {id, type: 'text', x, y (top left), text, size} or {id, type: 'arrow', x1, y1, x2, y2, head}
+  // parts and notes share one id counter, so `selected` can name either
+  let state = { parts: [], links: [], notes: [], next: 1, lineWidth: 'normal' };
   let selected = null;
+  let tool = null;                                      // 'text' | 'arrow' while placing a note
+  let editor = null;                                    // inline text editor, while open
   const undoStack = [], redoStack = [];
   const LINE = { thin: 9, normal: 14, slide: 26 };
   const COLORS = ['#7cc4e8', '#f2c14e', '#e07a5f', '#81b29a', '#b8a1d9', '#f4a6c4', '#9aa5ad', '#ffffff'];
+  const TEXT_SIZE = { s: 250, m: 350, l: 500 };          // font size in world units (0.01 mm)
+  const FONT = 'Arial, Helvetica, sans-serif';
 
   const part = id => state.parts.find(p => p.id === id);
+  const note = id => state.notes.find(n => n.id === id);
   const dev = p => DEV.get(p.dev);
   const norm = a => ((a % 360) + 360) % 360;
   const rad = a => a * Math.PI / 180;
@@ -179,6 +202,26 @@
     for (const id of ids) { const p = part(id); p.x = 2 * cx - p.x; p.a = norm(-p.a); p.f = !p.f; }
   }
   function centre(id) { const b = bbox([id]); return [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2]; }
+  const headSize = () => Math.max(110, (LINE[state.lineWidth] || 14) * 9);
+  function noteBox(n) {
+    if (n.type === 'arrow') {
+      const h = headSize() / 2;
+      return { x0: Math.min(n.x1, n.x2) - h, y0: Math.min(n.y1, n.y2) - h, x1: Math.max(n.x1, n.x2) + h, y1: Math.max(n.y1, n.y2) + h };
+    }
+    const te = $('notes').querySelector(`.note[data-id="${n.id}"] text`);
+    if (te) { const b = te.getBBox(); if (b.width) return { x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height }; }
+    const fs = TEXT_SIZE[n.size] || TEXT_SIZE.m, lines = n.text.split('\n');
+    return { x0: n.x, y0: n.y, x1: n.x + fs * 0.55 * Math.max(1, ...lines.map(l => l.length)), y1: n.y + fs * 1.2 * lines.length };
+  }
+  function drawingBox() {                               // parts and notes together
+    const b = bbox(state.parts.map(p => p.id));
+    for (const n of state.notes) {
+      const c = noteBox(n);
+      b.x0 = Math.min(b.x0, c.x0); b.y0 = Math.min(b.y0, c.y0); b.x1 = Math.max(b.x1, c.x1); b.y1 = Math.max(b.y1, c.y1);
+    }
+    return b;
+  }
+  const isEmpty = () => !state.parts.length && !state.notes.length;
 
   // ---------------------------------------------------------------- undo / autosave
   const snapshot = () => JSON.stringify(state);
@@ -192,13 +235,17 @@
     store.set('autosave', state);
     renderAll(); renderProps(); updateButtons();
   }
-  function restore(s) { state = JSON.parse(s); if (selected && !part(selected)) selected = null; changed(); }
+  function restore(s) {
+    state = JSON.parse(s); state.notes = state.notes || [];
+    if (selected && !part(selected) && !note(selected)) selected = null;
+    changed();
+  }
   function undo() { if (undoStack.length) { redoStack.push(snapshot()); restore(undoStack.pop()); } }
   function redo() { if (redoStack.length) { undoStack.push(snapshot()); restore(redoStack.pop()); } }
   function updateButtons() {
     document.querySelector('[data-act=undo]').disabled = !undoStack.length;
     document.querySelector('[data-act=redo]').disabled = !redoStack.length;
-    $('emptyHint').hidden = state.parts.length > 0;
+    $('emptyHint').hidden = !isEmpty();
   }
 
   // ---------------------------------------------------------------- view (zoom / pan)
@@ -207,6 +254,7 @@
   function applyView() {
     world.setAttribute('transform', `matrix(${view.s},0,0,${view.s},${-view.x * view.s},${-view.y * view.s})`);
     $('zoomLabel').textContent = Math.round(view.s / 0.08 * 100) + ' %';
+    if (editor) editor.place();
   }
   function toWorldPt(ev) {
     const r = canvas.getBoundingClientRect();
@@ -218,8 +266,8 @@
   }
   function fit() {
     const r = canvas.getBoundingClientRect();
-    if (!state.parts.length) { view.s = 0.08; view.x = -r.width / 2 / view.s; view.y = -r.height / 2 / view.s; applyView(); return; }
-    const b = bbox(state.parts.map(p => p.id)), m = 600;
+    if (isEmpty()) { view.s = 0.08; view.x = -r.width / 2 / view.s; view.y = -r.height / 2 / view.s; applyView(); return; }
+    const b = drawingBox(), m = 600;
     view.s = Math.min(0.25, Math.min(r.width / (b.x1 - b.x0 + 2 * m), r.height / (b.y1 - b.y0 + 2 * m)));
     view.x = (b.x0 + b.x1) / 2 - r.width / 2 / view.s; view.y = (b.y0 + b.y1) / 2 - r.height / 2 / view.s; applyView();
   }
@@ -245,15 +293,49 @@
       g.setAttribute('transform', transformOf(p));
       layer.appendChild(g);                             // keeps the z-order of state.parts
     }
-    renderFills(); renderOverlay();
+    renderFills(); renderNotes(); renderOverlay();
+  }
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  function noteSvg(n) {                                 // markup of a label or arrow, for the canvas and the export
+    if (n.type === 'text') {
+      const fs = TEXT_SIZE[n.size] || TEXT_SIZE.m;
+      return `<text x="${n.x}" y="${n.y + fs * 0.8}" font-family="${FONT}" font-size="${fs}" fill="#000">` +
+        n.text.split('\n').map((l, i) => `<tspan x="${n.x}"${i ? ` dy="${fs * 1.2}"` : ''}>${esc(l) || ' '}</tspan>`).join('') + '</text>';
+    }
+    const sw = LINE[state.lineWidth] || 14, h = headSize(), L = Math.hypot(n.x2 - n.x1, n.y2 - n.y1) || 1;
+    const ux = (n.x2 - n.x1) / L, uy = (n.y2 - n.y1) / L;
+    const head = (x, y, dx, dy) => {                    // filled tip at (x, y) pointing along (dx, dy)
+      const bx = x - dx * h, by = y - dy * h, w = h * 0.42;
+      return `<polygon points="${x},${y} ${bx - dy * w},${by + dx * w} ${bx + dy * w},${by - dx * w}" fill="#000"/>`;
+    };
+    const end = n.head !== 'none', start = n.head === 'both', cut = Math.min(h * 0.7, L / 2);
+    const x1 = n.x1 + (start ? ux * cut : 0), y1 = n.y1 + (start ? uy * cut : 0);
+    const x2 = n.x2 - (end ? ux * cut : 0), y2 = n.y2 - (end ? uy * cut : 0);
+    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#000" stroke-width="${sw}" stroke-linecap="round"/>` +
+      (end ? head(n.x2, n.y2, ux, uy) : '') + (start ? head(n.x1, n.y1, -ux, -uy) : '');
+  }
+  function renderNotes() {
+    const layer = $('notes'); layer.innerHTML = '';
+    for (const n of state.notes) {
+      const g = el('g', { class: 'note' }); g.dataset.id = n.id;
+      g.innerHTML = noteSvg(n);
+      layer.appendChild(g);
+      if (n.type === 'text') {                          // the whole text box can be grabbed, not just the glyphs
+        const b = g.querySelector('text').getBBox(), p = 60;
+        g.insertBefore(el('rect', { class: 'hit', x: b.x - p, y: b.y - p, width: b.width + 2 * p, height: b.height + 2 * p }), g.firstChild);
+        if (editor && editor.id === n.id) g.style.visibility = 'hidden';
+      } else g.insertBefore(el('line', { class: 'hit', x1: n.x1, y1: n.y1, x2: n.x2, y2: n.y2 }), g.firstChild);
+    }
   }
   function renderTransforms(ids) {
     for (const id of ids) { const g = partEls.get(id); if (g) g.setAttribute('transform', transformOf(part(id))); }
     renderFills(); renderOverlay();
   }
+  // the liquid of a part lies directly below its own drawing, so a vessel in front also covers what
+  // is behind it with its liquid
   function renderFills() {
-    const defs = $('defs'), layer = $('fills');
-    defs.innerHTML = ''; layer.innerHTML = '';
+    const defs = $('defs');
+    defs.innerHTML = ''; $('parts').querySelectorAll('.fill').forEach(f => f.remove());
     for (const p of state.parts) {
       const d = dev(p);
       if (!d.fill || !p.fill || !p.fill.on) continue;
@@ -264,8 +346,8 @@
       const cp = el('clipPath', { id: 'clip' + p.id });
       for (const poly of polys) cp.appendChild(el('polygon', { points: poly.map(q => q.join(',')).join(' ') }));
       defs.appendChild(cp);
-      layer.appendChild(el('rect', { x: Math.min(...xs), y: lvl, width: Math.max(...xs) - Math.min(...xs), height: bot - lvl + 1,
-        fill: p.fill.color, 'clip-path': `url(#clip${p.id})` }));
+      $('parts').insertBefore(el('rect', { class: 'fill', x: Math.min(...xs), y: lvl, width: Math.max(...xs) - Math.min(...xs),
+        height: bot - lvl + 1, fill: p.fill.color, 'clip-path': `url(#clip${p.id})` }), partEls.get(p.id));
     }
   }
   let snapHints = [], activeSnap = null;
@@ -274,7 +356,16 @@
     if (selected && part(selected)) {
       o.appendChild(el('polygon', { class: 'sel-box', points: corners(part(selected)).map(q => q.join(',')).join(' ') }));
     }
-    const r = 7 / view.s;
+    const r = 7 / view.s, n = selected && note(selected);
+    if (n && n.type === 'text' && !editor) {
+      const b = noteBox(n), p = 60;
+      o.appendChild(el('rect', { class: 'sel-box', x: b.x0 - p, y: b.y0 - p, width: b.x1 - b.x0 + 2 * p, height: b.y1 - b.y0 + 2 * p }));
+    } else if (n && n.type === 'arrow' && !(drag && drag.handle)) {
+      for (const e of [1, 2]) {                         // grab the ends to change the arrow
+        const c = el('circle', { class: 'handle', cx: n['x' + e], cy: n['y' + e], r });
+        c.dataset.end = e; o.appendChild(c);
+      }
+    }
     if (selected && !drag) {                             // a "separate here" button on every connection of the selection
       state.links.forEach((l, i) => {
         if (l.p1 !== selected && l.p2 !== selected) return;
@@ -294,7 +385,9 @@
   }
 
   // ---------------------------------------------------------------- dragging and snapping
-  let drag = null;   // {ids, start: Map id->{x,y,a}, from: [wx, wy], before, moved, detach}
+  // drag: {ids (parts), notes, handle: {id, end, created} for one arrow end, start, nstart, hstart, from: [wx, wy],
+  //        before, moved, overTrash}
+  let drag = null;
 
   function findSnap(ids) {
     const moving = new Set(ids), tol = 24 / view.s;
@@ -322,20 +415,34 @@
     rotateSet(ids, sn.mw.x, sn.mw.y, delta);
     for (const id of ids) { const p = part(id); p.x += sn.tw.x - sn.mw.x; p.y += sn.tw.y - sn.mw.y; }
   }
-  function startDrag(ids, ev, before) {
-    drag = { ids: [...ids], start: new Map(), from: toWorldPt(ev), before, moved: false };
+  function startDrag(ids, ev, before, notes = [], handle = null) {
+    drag = { ids: [...ids], notes: [...notes], handle, start: new Map(), nstart: new Map(), from: toWorldPt(ev), before, moved: false };
     for (const id of drag.ids) { const p = part(id); drag.start.set(id, { x: p.x, y: p.y, a: p.a }); }
+    for (const id of drag.notes) drag.nstart.set(id, { ...note(id) });
+    if (handle) { const n = note(handle.id); drag.hstart = [n['x' + handle.end], n['y' + handle.end]]; }
     canvas.classList.add('dragging');
+  }
+  function moveHandle(ev, dx, dy) {                     // one end of an arrow; Shift keeps 15° steps
+    const { id, end } = drag.handle, n = note(id), o = end === 1 ? [n.x2, n.y2] : [n.x1, n.y1];
+    let x = drag.hstart[0] + dx, y = drag.hstart[1] + dy;
+    if (ev.shiftKey) {
+      const L = Math.hypot(x - o[0], y - o[1]), a = Math.round(Math.atan2(y - o[1], x - o[0]) / (Math.PI / 12)) * Math.PI / 12;
+      x = o[0] + L * Math.cos(a); y = o[1] + L * Math.sin(a);
+    }
+    n['x' + end] = x; n['y' + end] = y;
+    renderNotes(); renderOverlay();
   }
   function moveDrag(ev) {
     const [wx, wy] = toWorldPt(ev), dx = wx - drag.from[0], dy = wy - drag.from[1];
     if (!drag.moved && Math.hypot(dx, dy) * view.s < 3) return;
-    if (!drag.moved) {                                  // dragged parts go on top
-      drag.moved = true;
-      state.parts.sort((a, b) => (drag.ids.includes(a.id) ? 1 : 0) - (drag.ids.includes(b.id) ? 1 : 0));
-      renderAll();
-    }
+    drag.moved = true;                                  // the stacking order stays as the user set it
+    if (drag.handle) return moveHandle(ev, dx, dy);
     for (const id of drag.ids) { const p = part(id), s = drag.start.get(id); p.x = s.x + dx; p.y = s.y + dy; p.a = s.a; }
+    for (const id of drag.notes) {
+      const n = note(id), s = drag.nstart.get(id);
+      if (n.type === 'text') { n.x = s.x + dx; n.y = s.y + dy; }
+      else { n.x1 = s.x1 + dx; n.y1 = s.y1 + dy; n.x2 = s.x2 + dx; n.y2 = s.y2 + dy; }
+    }
     const bin = $('trash'); bin.hidden = false;
     const br = bin.getBoundingClientRect(), pad = 12;
     drag.overTrash = ev.clientX >= br.left - pad && ev.clientX <= br.right + pad && ev.clientY >= br.top - pad && ev.clientY <= br.bottom + pad;
@@ -343,20 +450,26 @@
       bin.classList.toggle('over', drag.overTrash);
       bin.querySelector('span').textContent = t(drag.overTrash ? 'trashOver' : 'trash');
     }
-    activeSnap = drag.overTrash ? null : findSnap(drag.ids);
+    activeSnap = drag.overTrash || !drag.ids.length ? null : findSnap(drag.ids);
     if (drag.overTrash) snapHints = [];
     if (activeSnap) applySnap(drag.ids, activeSnap);
+    if (drag.notes.length) renderNotes();
     renderTransforms(drag.ids);
   }
   function endDrag() {
     if (!drag) return;
     const bin = $('trash'); bin.hidden = true; bin.classList.remove('over'); bin.querySelector('span').textContent = t('trash');
     if (drag.overTrash) {                               // dropped on the bin: remove what was dragged
-      const gone = new Set(drag.ids);
+      const gone = new Set([...drag.ids, ...drag.notes]);
       state.parts = state.parts.filter(p => !gone.has(p.id));
       state.links = state.links.filter(l => !gone.has(l.p1) && !gone.has(l.p2));
+      state.notes = state.notes.filter(n => !gone.has(n.id));
       if (gone.has(selected)) selected = null;
       activeSnap = null;
+    }
+    if (drag.handle && drag.handle.created) {           // a click instead of a drag: an arrow of default length
+      const n = note(drag.handle.id);
+      if (Math.hypot(n.x2 - n.x1, n.y2 - n.y1) * view.s < 10) { n.x2 = n.x1 + 1500; n.y2 = n.y1; }
     }
     if (activeSnap) state.links.push({ p1: activeSnap.mp, j1: activeSnap.mj, p2: activeSnap.tp, j2: activeSnap.tj });
     const before = drag.before;
@@ -414,8 +527,37 @@
   let pan = null;
   canvas.addEventListener('pointerdown', ev => {
     canvas.focus();
+    if (tool && ev.button === 0) {                      // place a label or start an arrow
+      ev.preventDefault();
+      const [x, y] = toWorldPt(ev), before = snapshot(), id = state.next++;
+      if (tool === 'text') {
+        const size = lastTextSize, fs = TEXT_SIZE[size];
+        state.notes.push({ id, type: 'text', x, y: y - fs * 0.6, text: '', size });
+        selected = id; setTool(null); renderAll(); renderProps();
+        setTimeout(() => editText(id, before), 0);      // after the click has settled, or it takes the focus away
+      } else {
+        state.notes.push({ id, type: 'arrow', x1: x, y1: y, x2: x, y2: y, head: 'end' });
+        selected = id; setTool(null); renderAll(); renderProps();
+        canvas.setPointerCapture(ev.pointerId);
+        startDrag([], ev, before, [], { id, end: 2, created: true });
+      }
+      return;
+    }
     const u = ev.target.closest && ev.target.closest('.unlink');
     if (u) { unlink(state.links[+u.dataset.link]); return; }
+    const h = ev.target.closest && ev.target.closest('.handle');
+    if (h && ev.button === 0) {
+      canvas.setPointerCapture(ev.pointerId);
+      startDrag([], ev, snapshot(), [], { id: selected, end: +h.dataset.end });
+      return;
+    }
+    const ng = ev.target.closest && ev.target.closest('.note');
+    if (ng && ev.button === 0) {
+      canvas.setPointerCapture(ev.pointerId);
+      selected = +ng.dataset.id; renderOverlay(); renderProps();
+      startDrag([], ev, snapshot(), [selected]);
+      return;
+    }
     const g = ev.target.closest && ev.target.closest('.part');
     if (g && ev.button === 0) {
       canvas.setPointerCapture(ev.pointerId);
@@ -433,12 +575,60 @@
   const stop = () => { if (drag) endDrag(); pan = null; };
   canvas.addEventListener('pointerup', stop);
   canvas.addEventListener('pointercancel', stop);
+  canvas.addEventListener('dblclick', ev => {           // the target is the canvas itself (pointer capture)
+    const hit = document.elementFromPoint(ev.clientX, ev.clientY), ng = hit && hit.closest('.note');
+    if (ng && note(+ng.dataset.id).type === 'text') editText(+ng.dataset.id);
+  });
   canvas.addEventListener('wheel', ev => {
     ev.preventDefault();
     const r = canvas.getBoundingClientRect();
     zoomAt(ev.deltaY < 0 ? 1.15 : 1 / 1.15, ev.clientX - r.left, ev.clientY - r.top);
     renderOverlay();
   }, { passive: false });
+
+  // tools for notes: one label or arrow per click on the toolbar button
+  let lastTextSize = 'm';
+  function setTool(name) {
+    tool = name;
+    canvas.classList.toggle('tool-text', name === 'text'); canvas.classList.toggle('tool-arrow', name === 'arrow');
+    document.querySelectorAll('[data-act=text], [data-act=arrow]').forEach(b => b.classList.toggle('on', b.dataset.act === name));
+    if (name) { if (selected) { selected = null; renderOverlay(); renderProps(); } toast(t(name === 'text' ? 'textMode' : 'arrowMode')); }
+  }
+  // edit a label in place: a text field over the label; clicking elsewhere or Esc finishes it,
+  // an empty label is removed. `before`: snapshot for undo (taken before a new label was added)
+  function editText(id, before = snapshot()) {
+    const n = note(id); if (!n || editor) return;
+    const ta = document.createElement('textarea');
+    ta.className = 'inline-edit'; ta.value = n.text; ta.wrap = 'off'; ta.spellcheck = false;
+    const grow = () => { ta.style.height = 'auto'; ta.style.width = 'auto'; ta.style.height = ta.scrollHeight + 'px'; ta.style.width = (ta.scrollWidth + 6) + 'px'; };
+    editor = {
+      id,
+      place() {                                         // follows zoom and panning
+        const fs = TEXT_SIZE[n.size] || TEXT_SIZE.m;
+        ta.style.fontSize = fs * view.s + 'px';
+        ta.style.left = (n.x - view.x) * view.s - 1 + 'px';
+        ta.style.top = (n.y - 0.146 * fs - view.y) * view.s - 1 + 'px';
+        grow();
+      },
+    };
+    const finish = () => {
+      if (!editor || editor.id !== id) return;
+      editor = null; ta.remove();
+      const v = ta.value.replace(/\s+$/, '');
+      if (v) n.text = v;
+      else { state.notes = state.notes.filter(m => m.id !== id); if (selected === id) selected = null; }
+      commit(before); renderAll(); renderProps();
+    };
+    ta.addEventListener('input', grow);
+    ta.addEventListener('blur', finish);
+    ta.addEventListener('keydown', e => {
+      e.stopPropagation();                              // typing is not a shortcut (Ctrl+Z undoes text here)
+      if (e.key === 'Escape' || (e.key === 'Enter' && (e.ctrlKey || e.metaKey))) { e.preventDefault(); ta.blur(); }
+    });
+    $('canvasWrap').appendChild(ta);
+    editor.place(); renderNotes(); renderOverlay();
+    ta.focus(); ta.select();
+  }
 
   // drag from the catalogue: the part appears as soon as the pointer is over the canvas
   let pending = null;
@@ -465,7 +655,7 @@
     const p = pending; pending = null;
     if (p.created) { endDrag(); return; }
     if (Math.hypot(ev.clientX - p.x, ev.clientY - p.y) < 4) {   // a click: attach to the selected setup if possible
-      const target = selected, r = canvas.getBoundingClientRect();
+      const target = part(selected) ? selected : null, r = canvas.getBoundingClientRect();
       const np = addPart(p.devId, view.x + r.width / 2 / view.s, view.y + r.height / 2 / view.s);
       if (target && !attachTo(np.id, target)) {          // no matching joint: put it next to the selection
         const b = bbox([...component(target)]), d = DEV.get(p.devId);
@@ -476,7 +666,7 @@
   });
 
   // ---------------------------------------------------------------- actions
-  function selectionSetup() { return selected ? [...component(selected)] : []; }
+  function selectionSetup() { return part(selected) ? [...component(selected)] : []; }
   // the whole setup turns, the selected part is the pivot (it stays where it is)
   function rotateSetup(delta) {
     const ids = selectionSetup(); if (!ids.length) return;
@@ -496,13 +686,17 @@
     const before = snapshot(), id = selected;
     state.parts = state.parts.filter(p => p.id !== id);
     state.links = state.links.filter(l => l.p1 !== id && l.p2 !== id);
+    state.notes = state.notes.filter(n => n.id !== id);
     selected = null; commit(before);
   }
   function duplicateSelected() {
-    const p = part(selected); if (!p) return;
-    const before = snapshot(), q = JSON.parse(JSON.stringify(p));
-    q.id = state.next++; q.x += 800; q.y += 400;
-    state.parts.push(q); selected = q.id; commit(before);
+    const p = part(selected), n = note(selected); if (!p && !n) return;
+    const before = snapshot(), q = JSON.parse(JSON.stringify(p || n));
+    q.id = state.next++;
+    if (p) { q.x += 800; q.y += 400; state.parts.push(q); }
+    else if (q.type === 'text') { q.x += 400; q.y += 400; state.notes.push(q); }
+    else { q.x1 += 400; q.y1 += 400; q.x2 += 400; q.y2 += 400; state.notes.push(q); }
+    selected = q.id; commit(before);
   }
   // separate one connection; the side that does not carry the setup moves off a little along
   // its joint, so the gap is visible
@@ -515,6 +709,14 @@
     for (const id of component(mover)) { const p = part(id); p.x -= Math.cos(d) * 500; p.y -= Math.sin(d) * 500; }
     commit(before);
   }
+  // stacking order: the selected part (or note) goes in front of or behind all others; notes always
+  // lie above the equipment
+  function arrange(front) {
+    const list = part(selected) ? state.parts : note(selected) ? state.notes : null; if (!list) return;
+    const before = snapshot(), i = list.findIndex(o => o.id === selected), [o] = list.splice(i, 1);
+    if (front) list.push(o); else list.unshift(o);
+    commit(before);
+  }
   function detachSelected() {                           // take the selected part out of its setup
     if (!selected) return;
     const before = snapshot(), id = selected;
@@ -524,10 +726,10 @@
   function newDrawing() {
     const clear = () => {
       const before = snapshot();
-      state = { parts: [], links: [], next: 1, lineWidth: state.lineWidth }; selected = null;
+      state = { parts: [], links: [], notes: [], next: 1, lineWidth: state.lineWidth }; selected = null;
       commit(before); fit();
     };
-    if (!state.parts.length) return clear();
+    if (isEmpty()) return clear();
     modal(t('newTitle'), `<p>${t('newText')}</p>`, [
       { label: t('cancel') }, { label: t('saveFirst'), cls: 'outline', fn: () => { projectDialog(); return false; } },
       { label: t('discard'), cls: 'danger-fill', fn: clear }]);
@@ -553,16 +755,19 @@
 
   // ---------------------------------------------------------------- export
   function exportSVG(withMeta = true) {
-    if (!state.parts.length) return null;
-    const b = bbox(state.parts.map(p => p.id)), m = 300;
+    if (isEmpty()) return null;
+    const b = drawingBox(), m = 300;
     const x0 = b.x0 - m, y0 = b.y0 - m, w = b.x1 - b.x0 + 2 * m, h = b.y1 - b.y0 + 2 * m;
-    const fills = $('fills').outerHTML.replace(/ id="fills"/, ''), defs = $('defs').innerHTML;
-    const parts = state.parts.map(p => `<g transform="${transformOf(p)}">${dev(p).svg}</g>`).join('');
+    const defs = $('defs').innerHTML, fillOf = new Map([...$('parts').querySelectorAll('.fill')].map(f => [f.nextElementSibling, f]));
+    const parts = state.parts.map(p => {
+      const f = fillOf.get(partEls.get(p.id));
+      return (f ? f.outerHTML.replace(/ class="fill"/, '') : '') + `<g transform="${transformOf(p)}">${dev(p).svg}</g>`;
+    }).join('') + state.notes.map(noteSvg).join('');
     const meta = withMeta ? `<metadata id="snapparatus">${JSON.stringify(projectData()).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</metadata>` : '';
     const sw = LINE[state.lineWidth] || 14;
     return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="${x0} ${y0} ${w} ${h}" ` +
       `width="${(w / 100).toFixed(1)}mm" height="${(h / 100).toFixed(1)}mm">${meta}<defs>${defs}</defs>` +
-      `<style>path{stroke-width:${sw}px}</style>${fills}${parts}</svg>`;
+      `<style>path{stroke-width:${sw}px}</style>${parts}</svg>`;
   }
   function svgToPng(svg, maxPx = 4000) {
     return new Promise((resolve, reject) => {
@@ -603,10 +808,12 @@
   // ---------------------------------------------------------------- project files
   const projectData = () => ({ format: 'snapparatus', version: 1, lineWidth: state.lineWidth,
     parts: state.parts.map(p => ({ id: p.id, dev: p.dev, x: Math.round(p.x), y: Math.round(p.y), a: +p.a.toFixed(2), f: p.f, fill: p.fill })),
-    links: state.links });
+    links: state.links,
+    notes: state.notes.map(n => n.type === 'text' ? { id: n.id, type: 'text', x: Math.round(n.x), y: Math.round(n.y), text: n.text, size: n.size }
+      : { id: n.id, type: 'arrow', x1: Math.round(n.x1), y1: Math.round(n.y1), x2: Math.round(n.x2), y2: Math.round(n.y2), head: n.head }) });
   let projectName = null;
   function projectDialog(focusOpen = false) {
-    const empty = !state.parts.length, name = projectName || t('fileName');
+    const empty = isEmpty(), name = projectName || t('fileName');
     modal(t('project'), `<div class="proj">
       <section><h3>${t('save')}</h3><p>${t('saveText')}</p>
         <div class="name"><input id="projName" value="${name.replace(/"/g, '&quot;')}" ${empty ? 'disabled' : ''}><span>.snapparatus.json</span></div>
@@ -641,14 +848,15 @@
       if (!data || data.format !== 'snapparatus') throw new Error('format');
     } catch (e) { closeModal(); return toast(t('openFailed')); }
     const go = () => { loadProject(data); projectName = f.name.replace(/\.snapparatus\.json$|\.json$|\.svg$/i, ''); };
-    if (!state.parts.length) { closeModal(); return go(); }
+    if (isEmpty()) { closeModal(); return go(); }
     modal(t('replaceTitle'), `<p>${t('replaceText')}</p>`, [{ label: t('cancel') }, { label: t('replace'), cls: 'primary', fn: go }]);
   }
   function loadProject(data) {
     if (!data || data.format !== 'snapparatus' || !Array.isArray(data.parts)) throw new Error('format');
     const before = snapshot(), known = data.parts.filter(p => DEV.has(p.dev)), ids = new Set(known.map(p => p.id));
-    state = { parts: known, links: (data.links || []).filter(l => ids.has(l.p1) && ids.has(l.p2)),
-      next: Math.max(0, ...known.map(p => p.id)) + 1, lineWidth: data.lineWidth || 'normal' };
+    const notes = (data.notes || []).filter(n => (n.type === 'text' && typeof n.text === 'string') || n.type === 'arrow');
+    state = { parts: known, links: (data.links || []).filter(l => ids.has(l.p1) && ids.has(l.p2)), notes,
+      next: Math.max(0, ...known.map(p => p.id), ...notes.map(n => n.id)) + 1, lineWidth: data.lineWidth || 'normal' };
     selected = null; commit(before); fit();
     if (known.length < data.parts.length) toast(t('unknownDevices', data.parts.length - known.length));
   }
@@ -740,8 +948,29 @@
   $('search').addEventListener('input', renderTiles);
 
   // ---------------------------------------------------------------- properties panel
+  const actionsGrp = withDetach => `<div class="grp"><div class="t">${t('arrange')}</div><div class="row2" style="margin:0;flex-wrap:wrap">
+      <button class="btn outline" data-act="toFront"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="currentColor"/><path d="M15 5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/></svg>${t('toFront')}</button>
+      <button class="btn outline" data-act="toBack"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2" fill="currentColor"/><path d="M19 9h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1v-1"/></svg>${t('toBack')}</button>
+    </div></div>
+    <div class="grp"><div class="row2" style="margin:0;flex-wrap:wrap">
+      <button class="btn outline" data-act="duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V4h12"/></svg>${t('duplicate')}</button>
+      ${withDetach ? `<button class="btn outline" data-act="detach">${t('detach')}</button>` : ''}
+      <button class="btn outline danger" data-act="delete"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>${t('delete')}</button>
+    </div></div>`;
+  const seg = (attr, cur, opts) => `<div class="seg">${opts.map(([k, label]) =>
+    `<button data-${attr}="${k}" class="${cur === k ? 'on' : ''}">${label}</button>`).join('')}</div>`;
   function renderProps() {
-    const body = $('propsBody'), p = selected && part(selected);
+    const body = $('propsBody'), p = selected && part(selected), n = selected && note(selected);
+    if (n) {
+      $('propsTitle').textContent = t(n.type === 'text' ? 'label' : 'arrowTitle');
+      body.innerHTML = (n.type === 'text'
+        ? `<div class="grp"><div class="t">${t('size')}</div>${seg('size', n.size, [['s', t('small')], ['m', t('medium')], ['l', t('large')]])}
+             <div class="row2" style="margin-top:10px"><button class="btn outline" data-act="editText">${t('editText')}</button></div>
+             <div class="hint">${t('textHint')}</div></div>`
+        : `<div class="grp"><div class="t">${t('head')}</div>${seg('head', n.head, [['end', t('headEnd')], ['both', t('headBoth')], ['none', t('headNone')]])}
+             <div class="hint" style="margin-top:10px">${t('arrowHint')}</div></div>`) + actionsGrp(false);
+      return;
+    }
     if (!p) {
       $('propsTitle').textContent = t('drawing');
       body.innerHTML = `<div class="sub">${t('parts', state.parts.length)}</div>
@@ -766,11 +995,7 @@
           <div class="row2"><label>${t('level')}</label><input type="range" id="fillLevel" min="0" max="100" value="${p.fill.level}"><span id="fillVal">${p.fill.level} %</span></div>
           <div class="row2"><label>${t('color')}</label><div class="swatches">${COLORS.map(c => `<button data-color="${c}" class="${p.fill.color === c ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div></div>
         </div>` : ''}
-        <div class="grp"><div class="row2" style="margin:0;flex-wrap:wrap">
-          <button class="btn outline" data-act="duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V4h12"/></svg>${t('duplicate')}</button>
-          ${state.links.some(l => l.p1 === p.id || l.p2 === p.id) ? `<button class="btn outline" data-act="detach">${t('detach')}</button>` : ''}
-          <button class="btn outline danger" data-act="delete"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>${t('delete')}</button>
-        </div></div>`;
+        ${actionsGrp(state.links.some(l => l.p1 === p.id || l.p2 === p.id))}`;
       const rotIn = $('rotIn');
       rotIn.addEventListener('change', () => setRotation(+rotIn.value || 0));
       if ($('fillOn')) {
@@ -788,6 +1013,10 @@
   $('propsBody').addEventListener('click', ev => {
     const lw = ev.target.closest('[data-lw]');
     if (lw) { const b = snapshot(); state.lineWidth = lw.dataset.lw; commit(b); return; }
+    const sz = ev.target.closest('[data-size]');
+    if (sz) { const b = snapshot(); note(selected).size = lastTextSize = sz.dataset.size; commit(b); return; }
+    const hd = ev.target.closest('[data-head]');
+    if (hd) { const b = snapshot(); note(selected).head = hd.dataset.head; commit(b); return; }
     const c = ev.target.closest('[data-color]');
     if (c) { const p = part(selected), b = snapshot(); p.fill.color = c.dataset.color; p.fill.on = true; commit(b); }
   });
@@ -846,8 +1075,10 @@
     collapseProps: () => { settings.propsCollapsed = !settings.propsCollapsed; saveSettings(); applyLayout(); },
     rotL: () => rotateSetup(-15), rotR: () => rotateSetup(15), mirror: mirrorSetup,
     duplicate: duplicateSelected, delete: deleteSelected, detach: detachSelected,
+    toFront: () => arrange(true), toBack: () => arrange(false),
     about: showAbout, closeAbout: hideAbout,
-    text: () => toast(t('soon')), arrow: () => toast(t('soon')), templates: () => toast(t('soon')),
+    text: () => setTool(tool === 'text' ? null : 'text'), arrow: () => setTool(tool === 'arrow' ? null : 'arrow'),
+    editText: () => editText(selected), templates: () => toast(t('soon')),
   };
   document.addEventListener('click', ev => {
     const b = ev.target.closest('[data-act]');
@@ -867,13 +1098,18 @@
     else if (k === 'delete' || k === 'backspace') { ev.preventDefault(); deleteSelected(); }
     else if (k === 'r') rotateSetup(ev.shiftKey ? -15 : 15);
     else if (k === 'm') mirrorSetup();
-    else if (k === 'escape') { if (!$('modal').hidden) return closeModal(); if (!$('aboutDialog').hidden) return hideAbout(); selected = null; renderOverlay(); renderProps(); closeMenus(); }
+    else if (k === 'escape') {
+      if (!$('modal').hidden) return closeModal(); if (!$('aboutDialog').hidden) return hideAbout();
+      if (tool) return setTool(null);
+      selected = null; renderOverlay(); renderProps(); closeMenus();
+    }
   });
 
   // ---------------------------------------------------------------- start
   const saved = store.get('autosave', null);
   if (saved && Array.isArray(saved.parts)) {
     saved.parts = saved.parts.filter(p => DEV.has(p.dev)); state = Object.assign(state, saved);
+    state.notes = state.notes || [];
   }
   applyLang(); renderAll(); updateButtons(); fit();
   window.addEventListener('resize', () => renderOverlay());
