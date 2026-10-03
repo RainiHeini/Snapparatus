@@ -1053,6 +1053,7 @@
     adapters: 'Reduzierstücke 29-14', funnels: 'Trichter NS 29', measuring: 'Messzylinder 100', bottles: 'Steilbrustflaschen (Enghals) 250',
     heating: 'Magnetrührer', stand: 'Laborhebebühne ausgefahren, Kurbel links', drying: 'Trockenrohre NS 29', misc: 'Bunsenbrenner mit Flamme' };
   let curCat = DATA.categories[0].key, curSub = null, curNS = null;
+  const NO_SUBGROUPS = new Set(['distillation']);         // too many small groups to help there; joints filter only
   const jointSizes = d => [...new Set(d.snaps.filter(s => s.ns && s.system === 'NS').map(s => s.ns))];
   const thumb = d => `<svg viewBox="${-d.w * 0.04} ${-d.h * 0.04} ${d.w * 1.08} ${d.h * 1.08}" preserveAspectRatio="xMidYMid meet">` +
     d.svg.replace('<path ', '<path vector-effect="non-scaling-stroke" style="stroke-width:1.1px" ') + '</svg>';
@@ -1089,7 +1090,7 @@
       list = DATA.devices.filter(d => d.category === curCat); title = cat[settings.lang];
       const subs = [...new Set(list.map(subKey))];
       const box = $('subcats'); box.innerHTML = '';
-      if (subs.length > 1 && subs.length <= 14) {
+      if (subs.length > 1 && subs.length <= 14 && !NO_SUBGROUPS.has(curCat)) {
         for (const s of [null, ...subs]) {
           const b = document.createElement('button');
           b.textContent = s === null ? t('all') : s; b.className = s === curSub ? 'on' : ''; b.title = b.textContent;
