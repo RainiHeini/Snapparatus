@@ -120,6 +120,18 @@ button { font: inherit; color: inherit; }
 .joints { display: flex; flex-wrap: wrap; gap: 5px; }
 .joints span { font-size: 11.5px; padding: 2px 7px; border-radius: 10px; background: var(--bg); }
 .hint { color: var(--mute); font-size: 12px; }
+.plist { display: flex; flex-direction: column; gap: 4px; }
+.pl-row { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 3px 6px; border-radius: 7px;
+          cursor: pointer; text-align: left; min-width: 0; }
+.pl-row:hover { background: var(--accent-soft); }
+.pl-ico { width: 26px; height: 26px; flex: none; display: grid; place-items: center; border-radius: 5px; background: #fff; border: 1px solid var(--line); }
+.pl-ico svg { width: 22px; height: 22px; }
+.pl-ico.icon svg { width: 15px; height: 15px; fill: none; stroke: var(--mute); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pl-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12.5px; }
+.pl-group { border: 1px solid var(--line); border-radius: 9px; padding: 4px; background: var(--bg); }
+.pl-group .pl-row:hover { background: #fff; }
+.pl-head { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--mute); padding: 2px 6px 3px; font-weight: 600; }
+.pl-head svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .toggle { appearance: none; width: 34px; height: 20px; border-radius: 10px; background: var(--line); position: relative; cursor: pointer; margin: 0; }
 .toggle:checked { background: var(--accent); }
 .toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .12s; }
@@ -132,6 +144,7 @@ button { font: inherit; color: inherit; }
 .fill { pointer-events: none; }
 .dragging .part, .dragging { cursor: grabbing; }
 .sel-box { fill: none; stroke: var(--select); stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; stroke-width: 1.5; pointer-events: none; }
+.hover-box { fill: rgba(15,124,140,.08); stroke: var(--select); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
 .snap-dot { fill: #fff; stroke: var(--snap); vector-effect: non-scaling-stroke; stroke-width: 2; pointer-events: none; }
 .snap-dot.active { fill: var(--snap); }
 .note { cursor: grab; }

@@ -28,6 +28,8 @@
       label: 'Beschriftung', arrowTitle: 'Pfeil', size: 'Größe', small: 'Klein', medium: 'Mittel', large: 'Groß',
       editText: 'Text bearbeiten', textHint: 'Doppelklick auf den Text bearbeitet ihn. Fertig: daneben klicken oder Esc.',
       arrange: 'Anordnung', toFront: 'Nach vorn', toBack: 'Nach hinten',
+      frontTip: 'Eine Stufe nach vorn: vor das nächste Teil, das es überdeckt', backTip: 'Eine Stufe nach hinten: hinter das nächste Teil, das es überdeckt',
+      inDrawing: 'In der Zeichnung', setup: 'Apparatur', notesGroup: 'Beschriftungen und Pfeile', listHint: 'Anklicken wählt aus – auch Teile, die verdeckt sind.',
       head: 'Spitze', headEnd: 'Am Ende', headBoth: 'Beidseitig', headNone: 'Ohne',
       arrowHint: 'Die Enden lassen sich ziehen, mit gedrückter Umschalttaste in 15°-Schritten.',
       exportSvg: 'Als SVG speichern', exportPng: 'Als PNG speichern', settings: 'Einstellungen',
@@ -50,7 +52,7 @@
       results: 'Suchergebnisse', noResults: 'Nichts gefunden.',
       emptyHint: 'Geräte aus dem Katalog hierher ziehen oder anklicken.<br>Schliffe rasten automatisch ein.', jointSize: 'Schliff',
       drawing: 'Zeichnung', parts: n => `${n} ${n === 1 ? 'Teil' : 'Teile'}`, lineWidth: 'Strichstärke',
-      thin: 'Dünn', normal: 'Normal', slide: 'Folie',
+      thin: 'Dünn', normal: 'Normal', thick: 'Dick',
       howto: 'Teil ziehen: am passenden Schliff rastet es ein und richtet sich aus. Ein Klick im Katalog setzt das Teil an das ausgewählte Gerät an. Eingerastete Teile bleiben zusammen – zum Trennen ein Teil auswählen und am Schliff auf das rote Symbol klicken.',
       position: 'Lage', rotation: 'Drehung', rotateHint: 'dreht die ganze Apparatur um dieses Teil', mirror: 'Spiegeln',
       mirrorBtn: 'Horizontal', fill: 'Füllung', level: 'Füllhöhe', color: 'Farbe', joints: 'Anschlüsse',
@@ -79,7 +81,9 @@
       arrowMode: 'Drag on the drawing area to draw an arrow (Esc: cancel).',
       label: 'Label', arrowTitle: 'Arrow', size: 'Size', small: 'Small', medium: 'Medium', large: 'Large',
       editText: 'Edit text', textHint: 'Double-click the text to edit it. Done: click elsewhere or press Esc.',
-      arrange: 'Arrange', toFront: 'Bring to front', toBack: 'Send to back',
+      arrange: 'Arrange', toFront: 'Bring forward', toBack: 'Send backward',
+      frontTip: 'One step forward: in front of the next part it overlaps', backTip: 'One step backward: behind the next part it overlaps',
+      inDrawing: 'In the drawing', setup: 'Setup', notesGroup: 'Labels and arrows', listHint: 'Click to select – also parts that are hidden behind others.',
       head: 'Head', headEnd: 'At the end', headBoth: 'Both ends', headNone: 'None',
       arrowHint: 'Drag the ends to change the arrow; hold Shift for 15° steps.',
       exportSvg: 'Save as SVG', exportPng: 'Save as PNG', settings: 'Settings',
@@ -107,7 +111,7 @@
       results: 'Search results', noResults: 'Nothing found.',
       emptyHint: 'Drag or click equipment in the catalogue.<br>Ground glass joints snap together automatically.', jointSize: 'Joint',
       drawing: 'Drawing', parts: n => `${n} ${n === 1 ? 'part' : 'parts'}`, lineWidth: 'Line width',
-      thin: 'Thin', normal: 'Normal', slide: 'Slide',
+      thin: 'Thin', normal: 'Normal', thick: 'Thick',
       howto: 'Drag a part: it snaps to a matching joint and aligns itself. Clicking in the catalogue attaches the part to the selected one. Snapped parts stay together – to separate them, select a part and click the red symbol at the joint.',
       position: 'Position', rotation: 'Rotation', rotateHint: 'turns the whole setup about this part', mirror: 'Mirror',
       mirrorBtn: 'Horizontal', fill: 'Liquid', level: 'Fill level', color: 'Colour', joints: 'Connections',
@@ -141,8 +145,9 @@
   let selected = null;
   let tool = null;                                      // 'text' | 'arrow' while placing a note
   let editor = null;                                    // inline text editor, while open
+  let hoverId = null;                                   // item under the pointer in the parts list
   const undoStack = [], redoStack = [];
-  const LINE = { thin: 9, normal: 14, slide: 26 };
+  const LINE = { thin: 9, normal: 14, thick: 26 };
   const COLORS = ['#7cc4e8', '#f2c14e', '#e07a5f', '#81b29a', '#b8a1d9', '#f4a6c4', '#9aa5ad', '#ffffff'];
   const TEXT_SIZE = { s: 250, m: 350, l: 500 };          // font size in world units (0.01 mm)
   const FONT = 'Arial, Helvetica, sans-serif';
@@ -201,6 +206,11 @@
   function mirrorSet(ids, cx) {                         // about the vertical line x = cx
     for (const id of ids) { const p = part(id); p.x = 2 * cx - p.x; p.a = norm(-p.a); p.f = !p.f; }
   }
+  function insidePart(p, wx, wy) {                     // world point inside the part's rectangle?
+    const c = Math.cos(rad(p.a)), s = Math.sin(rad(p.a)), dx = wx - p.x, dy = wy - p.y;
+    const lx = (c * dx + s * dy) * (p.f ? -1 : 1), ly = -s * dx + c * dy, d = dev(p);
+    return lx >= 0 && lx <= d.w && ly >= 0 && ly <= d.h;
+  }
   function centre(id) { const b = bbox([id]); return [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2]; }
   const headSize = () => Math.max(110, (LINE[state.lineWidth] || 14) * 9);
   function noteBox(n) {
@@ -235,6 +245,7 @@
     store.set('autosave', state);
     renderAll(); renderProps(); updateButtons();
   }
+  const lineKey = k => k === 'slide' ? 'thick' : LINE[k] ? k : 'normal';   // 'slide' was the old name of 'thick'
   function restore(s) {
     state = JSON.parse(s); state.notes = state.notes || [];
     if (selected && !part(selected) && !note(selected)) selected = null;
@@ -355,6 +366,10 @@
     const o = $('overlay'); o.innerHTML = '';
     if (selected && part(selected)) {
       o.appendChild(el('polygon', { class: 'sel-box', points: corners(part(selected)).map(q => q.join(',')).join(' ') }));
+    }
+    if (hoverId != null && hoverId !== selected && (part(hoverId) || note(hoverId))) {
+      if (part(hoverId)) o.appendChild(el('polygon', { class: 'hover-box', points: corners(part(hoverId)).map(q => q.join(',')).join(' ') }));
+      else { const b = noteBox(note(hoverId)); o.appendChild(el('rect', { class: 'hover-box', x: b.x0, y: b.y0, width: b.x1 - b.x0, height: b.y1 - b.y0 })); }
     }
     const r = 7 / view.s, n = selected && note(selected);
     if (n && n.type === 'text' && !editor) {
@@ -561,7 +576,10 @@
     const g = ev.target.closest && ev.target.closest('.part');
     if (g && ev.button === 0) {
       canvas.setPointerCapture(ev.pointerId);
-      grabPart(+g.dataset.id, ev);
+      let id = +g.dataset.id;
+      const sp = part(selected);                        // a selected part behind others can still be dragged
+      if (sp && !component(selected).has(id) && insidePart(sp, ...toWorldPt(ev))) id = selected;
+      grabPart(id, ev);
       return;
     }
     if (selected) { selected = null; renderOverlay(); renderProps(); }
@@ -709,12 +727,20 @@
     for (const id of component(mover)) { const p = part(id); p.x -= Math.cos(d) * 500; p.y -= Math.sin(d) * 500; }
     commit(before);
   }
-  // stacking order: the selected part (or note) goes in front of or behind all others; notes always
-  // lie above the equipment
+  // stacking order: one step = past the next part (or note) that actually overlaps the selected one,
+  // so every click changes something visible; notes always lie above the equipment
+  function stepTarget(front) {                          // -> [list, index of the selection, index to move to] or null
+    const isPart = !!part(selected), list = isPart ? state.parts : note(selected) ? state.notes : null;
+    if (!list) return null;
+    const box = o => isPart ? bbox([o.id]) : noteBox(o), i = list.findIndex(o => o.id === selected), a = box(list[i]);
+    const hits = o => { const b = box(o); return a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1; };
+    for (let k = front ? i + 1 : i - 1; k >= 0 && k < list.length; k += front ? 1 : -1) if (hits(list[k])) return [list, i, k];
+    return null;
+  }
   function arrange(front) {
-    const list = part(selected) ? state.parts : note(selected) ? state.notes : null; if (!list) return;
-    const before = snapshot(), i = list.findIndex(o => o.id === selected), [o] = list.splice(i, 1);
-    if (front) list.push(o); else list.unshift(o);
+    const st = stepTarget(front); if (!st) return;
+    const [list, i, k] = st, before = snapshot(), [o] = list.splice(i, 1);
+    list.splice(k, 0, o);                               // in front of / behind list[k] (indices shift by one when removing)
     commit(before);
   }
   function detachSelected() {                           // take the selected part out of its setup
@@ -856,7 +882,7 @@
     const before = snapshot(), known = data.parts.filter(p => DEV.has(p.dev)), ids = new Set(known.map(p => p.id));
     const notes = (data.notes || []).filter(n => (n.type === 'text' && typeof n.text === 'string') || n.type === 'arrow');
     state = { parts: known, links: (data.links || []).filter(l => ids.has(l.p1) && ids.has(l.p2)), notes,
-      next: Math.max(0, ...known.map(p => p.id), ...notes.map(n => n.id)) + 1, lineWidth: data.lineWidth || 'normal' };
+      next: Math.max(0, ...known.map(p => p.id), ...notes.map(n => n.id)) + 1, lineWidth: lineKey(data.lineWidth) };
     selected = null; commit(before); fit();
     if (known.length < data.parts.length) toast(t('unknownDevices', data.parts.length - known.length));
   }
@@ -949,8 +975,8 @@
 
   // ---------------------------------------------------------------- properties panel
   const actionsGrp = withDetach => `<div class="grp"><div class="t">${t('arrange')}</div><div class="row2" style="margin:0;flex-wrap:wrap">
-      <button class="btn outline" data-act="toFront"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="currentColor"/><path d="M15 5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/></svg>${t('toFront')}</button>
-      <button class="btn outline" data-act="toBack"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2" fill="currentColor"/><path d="M19 9h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1v-1"/></svg>${t('toBack')}</button>
+      <button class="btn outline" data-act="toFront" title="${t('frontTip')}" ${stepTarget(true) ? '' : 'disabled'}><svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="currentColor"/><path d="M15 5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/></svg>${t('toFront')}</button>
+      <button class="btn outline" data-act="toBack" title="${t('backTip')}" ${stepTarget(false) ? '' : 'disabled'}><svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2" fill="currentColor"/><path d="M19 9h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1v-1"/></svg>${t('toBack')}</button>
     </div></div>
     <div class="grp"><div class="row2" style="margin:0;flex-wrap:wrap">
       <button class="btn outline" data-act="duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V4h12"/></svg>${t('duplicate')}</button>
@@ -959,6 +985,30 @@
     </div></div>`;
   const seg = (attr, cur, opts) => `<div class="seg">${opts.map(([k, label]) =>
     `<button data-${attr}="${k}" class="${cur === k ? 'on' : ''}">${label}</button>`).join('')}</div>`;
+  // everything in the drawing, front first; snapped setups as one card. Picking a row selects it,
+  // which is the way to reach parts hidden behind others
+  const ICON_TEXT = '<svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>';
+  const ICON_ARROW = '<svg viewBox="0 0 24 24"><path d="M5 19 19 5"/><path d="M9 5h10v10"/></svg>';
+  const ICON_LINK = '<svg viewBox="0 0 24 24"><path d="M9 17H7A5 5 0 0 1 7 7h2"/><path d="M15 7h2a5 5 0 0 1 0 10h-2"/><path d="M8 12h8"/></svg>';
+  function partList() {
+    if (isEmpty()) return '';
+    const z = new Map(state.parts.map((p, i) => [p.id, i])), seen = new Set();
+    const row = (id, icon, label, cls = '') => `<button class="pl-row" data-pick="${id}" title="${esc(label)}"><span class="pl-ico ${cls}">${icon}</span><span class="pl-name">${esc(label)}</span></button>`;
+    const partRow = p => row(p.id, thumb(dev(p)), dev(p).name);
+    let html = '';
+    for (const p of [...state.parts].reverse()) {
+      if (seen.has(p.id)) continue;
+      const ids = [...component(p.id)].sort((a, b) => z.get(b) - z.get(a)); ids.forEach(id => seen.add(id));
+      html += ids.length === 1 ? partRow(p)
+        : `<div class="pl-group"><div class="pl-head">${ICON_LINK}${t('setup')} · ${t('parts', ids.length)}</div>${ids.map(id => partRow(part(id))).join('')}</div>`;
+    }
+    if (state.notes.length) {
+      html += `<div class="pl-group"><div class="pl-head">${t('notesGroup')}</div>` + [...state.notes].reverse().map(n =>
+        n.type === 'text' ? row(n.id, ICON_TEXT, n.text.split('\n').join(' ') || t('label'), 'icon')
+          : row(n.id, ICON_ARROW, t('arrowTitle'), 'icon')).join('') + '</div>';
+    }
+    return `<div class="grp"><div class="t">${t('inDrawing')}</div><div class="plist">${html}</div><div class="hint" style="margin-top:8px">${t('listHint')}</div></div>`;
+  }
   function renderProps() {
     const body = $('propsBody'), p = selected && part(selected), n = selected && note(selected);
     if (n) {
@@ -975,7 +1025,8 @@
       $('propsTitle').textContent = t('drawing');
       body.innerHTML = `<div class="sub">${t('parts', state.parts.length)}</div>
         <div class="grp"><div class="t">${t('lineWidth')}</div><div class="seg" id="lwSeg">
-          ${['thin', 'normal', 'slide'].map(k => `<button data-lw="${k}" class="${state.lineWidth === k ? 'on' : ''}">${t(k)}</button>`).join('')}</div></div>
+          ${['thin', 'normal', 'thick'].map(k => `<button data-lw="${k}" class="${state.lineWidth === k ? 'on' : ''}">${t(k)}</button>`).join('')}</div></div>
+        ${partList()}
         <div class="grp"><div class="hint">${t('howto')}</div></div>`;
     } else {
       const d = dev(p), cat = DATA.categories.find(c => c.key === d.category);
@@ -1010,7 +1061,14 @@
       }
     }
   }
+  $('propsBody').addEventListener('pointerover', ev => {
+    const r = ev.target.closest('[data-pick]'), id = r ? +r.dataset.pick : null;
+    if (id !== hoverId) { hoverId = id; renderOverlay(); }
+  });
+  $('propsBody').addEventListener('pointerleave', () => { if (hoverId != null) { hoverId = null; renderOverlay(); } });
   $('propsBody').addEventListener('click', ev => {
+    const pick = ev.target.closest('[data-pick]');
+    if (pick) { selected = +pick.dataset.pick; hoverId = null; renderOverlay(); renderProps(); return; }
     const lw = ev.target.closest('[data-lw]');
     if (lw) { const b = snapshot(); state.lineWidth = lw.dataset.lw; commit(b); return; }
     const sz = ev.target.closest('[data-size]');
@@ -1109,7 +1167,7 @@
   const saved = store.get('autosave', null);
   if (saved && Array.isArray(saved.parts)) {
     saved.parts = saved.parts.filter(p => DEV.has(p.dev)); state = Object.assign(state, saved);
-    state.notes = state.notes || [];
+    state.notes = state.notes || []; state.lineWidth = lineKey(state.lineWidth);
   }
   applyLang(); renderAll(); updateButtons(); fit();
   window.addEventListener('resize', () => renderOverlay());
