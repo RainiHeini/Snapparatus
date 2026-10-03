@@ -40,11 +40,12 @@ PowerPoint.
 
 ## Credits and licences
 
-The apparatus drawings come from **LaboBib** by Dr. R. Rensch, a laboratory equipment library
-for the chemistry drawing program **C-Design** (FoBasoft GmbH; Dr. J. Bauer, Dr. E. Fontain),
-both released as freeware.
+The apparatus drawings come from **[LaboBib](https://fontain.userweb.mwn.de/C-Design/LaboBib.htm)** by Dr. Rainer Rensch, a laboratory
+equipment library for the chemistry drawing program **C-Design** (FoBasoft GmbH; Dr. J. Bauer,
+Dr. E. Fontain), both released as freeware.
 
 - **Source code:** MIT licence, see [LICENSE](LICENSE).
 - **Drawings and device data:** original LaboBib/C-Design freeware terms, which allow free
-  use and redistribution but no charge of any kind. See [LICENSE-LaboBib.txt](LICENSE-LaboBib.txt).
+  use and redistribution but no charge of any kind; using the drawings on media available for a fee
+  requires the consent of Dr. Rainer Rensch. See [LICENSE-LaboBib.txt](LICENSE-LaboBib.txt).
   The MIT licence does not apply to them.

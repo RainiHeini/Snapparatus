@@ -7,7 +7,7 @@ freeware programs C-Design for Windows and the laboratory equipment library Labo
 They are NOT covered by the MIT licence in LICENSE, which applies to the source code of
 Snapparatus only.
 
-Copyright LaboBib (c) 1998 Dr. R. Rensch
+Copyright LaboBib (c) 1998 Dr. Rainer Rensch
 Copyright C-Design (c) 1988-1998 FoBasoft GmbH
 Copyright C-Design (c) 2010 Dr. J. Bauer, Dr. E. Fontain
 
@@ -39,5 +39,24 @@ English translation (unofficial; the German text above is authoritative):
     be accepted for consequences arising from incorrect operation or
     from program errors.
 
-In short: the drawings may be used and shared free of charge. Any paid use or distribution
-requires the consent of the authors.
+Freeware conditions as published on the LaboBib homepage
+(https://fontain.userweb.mwn.de/C-Design/LaboBib.htm, page dated 2010-03-02, retrieved 2026-10-03),
+German, verbatim:
+
+    Die Bibliothek LaboBib ist Freeware und kann frei verwendet und weitergegeben werden, 
+    solange für die Bereitstellung, Benutzung, oder Verteilung des Programms kein Entgelt 
+    verlangt wird. Eine Distribution der Bibliothek auf gegen Entgelt zugängliche Medien ist 
+    nur mit Zustimmung des Autors zulässig. Die Zeichnungen in der Laborgerätebibliothek 
+    LaboBib unterliegen dem Urheberrecht und dürfen auf gegen Entgelt zugänglichen Medien 
+    ausschließlich mit Zustimmung von Dr. Rainer Rensch verwendet werden.
+
+English translation (unofficial; the German text above is authoritative):
+
+    The library LaboBib is freeware and may be used and redistributed freely, as long as no 
+    fee is charged for providing, using or distributing the program. Distribution of the 
+    library on media available for a fee is only permitted with the consent of the author. 
+    The drawings in the laboratory equipment library LaboBib are protected by copyright and 
+    may only be used on media available for a fee with the consent of Dr. Rainer Rensch.
+
+In short: the drawings may be used and shared free of charge. Any paid distribution, and any
+use of the drawings on media available for a fee, requires the consent of Dr. Rainer Rensch.

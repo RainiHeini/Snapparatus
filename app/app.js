@@ -24,13 +24,14 @@
       text: 'Text', arrow: 'Pfeil', templates: 'Vorlagen', soon: 'Kommt bald', export: 'Export', copy: 'Kopieren',
       exportSvg: 'Als SVG speichern', exportPng: 'Als PNG speichern', settings: 'Einstellungen',
       swapSides: 'Seiten tauschen', swapHint: 'Katalog rechts, Eigenschaften links', about: 'Über Snapparatus · Lizenzen',
-      credit: 'Zeichnungen: LaboBib © 1998 Dr. R. Rensch · Lizenz',
+      credit: 'Zeichnungen: LaboBib © Dr. Rainer Rensch · Lizenz',
       aboutHtml: `<p>Kostenloses Werkzeug zum Zeichnen von Laborapparaturen für Lehre, Skripte und Präsentationen.</p>
         <h3>Gerätezeichnungen</h3>
-        <p>Alle Gerätezeichnungen stammen aus <b>LaboBib</b>, der Laborgerätebibliothek von <b>Dr. R. Rensch</b> (© 1998),
-        für das Zeichenprogramm <b>C-Design</b> (© 1988–1998 FoBasoft GmbH, © 2010 Dr. J. Bauer, Dr. E. Fontain).
-        Beide wurden als Freeware veröffentlicht. Lizenztext des Originals (wörtlich, aus <i>License.txt</i>):</p>
-        <blockquote>${'Das Programm C-Design und die Laborgerätebebliothek LaboBib sind Freeware und können frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung kein Entgelt verlangt wird.<br>Eine Distribution des Programms auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung der Autoren zulässig.<br><br>Haftungsausschluss<br>Es kann weder eine Garantie noch eine juristische Verantwortung oder irgendeine Haftung für die Folgen, die durch eine fehlerhafte Bedienung oder durch Programmfehler entstehen können, übernommen werden.'}</blockquote>
+        <p>Alle Gerätezeichnungen stammen aus <a href="https://fontain.userweb.mwn.de/C-Design/LaboBib.htm" target="_blank" rel="noopener"><b>LaboBib</b></a>,
+        der Laborgerätebibliothek von <b>Dr. Rainer Rensch</b>, für das Zeichenprogramm <b>C-Design</b>
+        (© 1988–1998 FoBasoft GmbH, © 2010 Dr. J. Bauer, Dr. E. Fontain). Freeware-Bedingungen laut LaboBib-Homepage
+        (Stand 2010-03-02, wörtlich):</p>
+        <blockquote>Die Bibliothek LaboBib ist Freeware und kann frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung des Programms kein Entgelt verlangt wird. Eine Distribution der Bibliothek auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung des Autors zulässig. Die Zeichnungen in der Laborgerätebibliothek LaboBib unterliegen dem Urheberrecht und dürfen auf gegen Entgelt zugänglichen Medien ausschließlich mit Zustimmung von Dr. Rainer Rensch verwendet werden.</blockquote>
         <h3>Programm</h3>
         <p>Der Programmcode von Snapparatus steht unter der MIT-Lizenz. Sie gilt nicht für die Gerätezeichnungen.</p>
         <p><a href="https://github.com/RainiHeini/Snapparatus" target="_blank" rel="noopener">Projekt auf GitHub</a></p>`,
@@ -64,16 +65,15 @@
       text: 'Text', arrow: 'Arrow', templates: 'Templates', soon: 'Coming soon', export: 'Export', copy: 'Copy',
       exportSvg: 'Save as SVG', exportPng: 'Save as PNG', settings: 'Settings',
       swapSides: 'Swap sides', swapHint: 'Catalogue on the right, properties on the left', about: 'About Snapparatus · Licences',
-      credit: 'Drawings: LaboBib © 1998 Dr. R. Rensch · Licence',
+      credit: 'Drawings: LaboBib © Dr. Rainer Rensch · Licence',
       aboutHtml: `<p>Free tool for drawing laboratory setups for teaching, lab manuals and presentations.</p>
         <h3>Equipment drawings</h3>
-        <p>All equipment drawings come from <b>LaboBib</b>, the laboratory equipment library by <b>Dr. R. Rensch</b> (© 1998),
-        for the drawing program <b>C-Design</b> (© 1988–1998 FoBasoft GmbH, © 2010 Dr. J. Bauer, Dr. E. Fontain).
-        Both were released as freeware. Original licence text (German, authoritative):</p>
-        <blockquote lang="de">${'Das Programm C-Design und die Laborgerätebebliothek LaboBib sind Freeware und können frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung kein Entgelt verlangt wird.<br>Eine Distribution des Programms auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung der Autoren zulässig.<br><br>Haftungsausschluss<br>Es kann weder eine Garantie noch eine juristische Verantwortung oder irgendeine Haftung für die Folgen, die durch eine fehlerhafte Bedienung oder durch Programmfehler entstehen können, übernommen werden.'}</blockquote>
-        <p>Unofficial translation: the program C-Design and the laboratory equipment library LaboBib are freeware and may be
-        used and redistributed freely, as long as no fee is charged for providing, using or distributing them. Distribution
-        of the program on media available for a fee is only permitted with the consent of the authors. Disclaimer: no warranty, legal responsibility or any liability whatsoever can be accepted for consequences arising from incorrect operation or from program errors.</p>
+        <p>All equipment drawings come from <a href="https://fontain.userweb.mwn.de/C-Design/LaboBib.htm" target="_blank" rel="noopener"><b>LaboBib</b></a>,
+        the laboratory equipment library by <b>Dr. Rainer Rensch</b>, for the drawing program <b>C-Design</b>
+        (© 1988–1998 FoBasoft GmbH, © 2010 Dr. J. Bauer, Dr. E. Fontain). Freeware conditions from the LaboBib homepage
+        (dated 2010-03-02, German, authoritative):</p>
+        <blockquote lang="de">Die Bibliothek LaboBib ist Freeware und kann frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung des Programms kein Entgelt verlangt wird. Eine Distribution der Bibliothek auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung des Autors zulässig. Die Zeichnungen in der Laborgerätebibliothek LaboBib unterliegen dem Urheberrecht und dürfen auf gegen Entgelt zugänglichen Medien ausschließlich mit Zustimmung von Dr. Rainer Rensch verwendet werden.</blockquote>
+        <p>Unofficial translation: The library LaboBib is freeware and may be used and redistributed freely, as long as no fee is charged for providing, using or distributing the program. Distribution of the library on media available for a fee is only permitted with the consent of the author. The drawings in the laboratory equipment library LaboBib are protected by copyright and may only be used on media available for a fee with the consent of Dr. Rainer Rensch.</p>
         <h3>Program</h3>
         <p>The Snapparatus source code is licensed under the MIT licence. It does not apply to the equipment drawings.</p>
         <p><a href="https://github.com/RainiHeini/Snapparatus" target="_blank" rel="noopener">Project on GitHub</a></p>`,
