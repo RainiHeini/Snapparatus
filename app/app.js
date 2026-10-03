@@ -15,7 +15,17 @@
       new: 'Neu', open: 'Öffnen', save: 'Speichern', undo: 'Rückgängig (Strg+Z)', redo: 'Wiederholen (Strg+Y)',
       text: 'Text', arrow: 'Pfeil', templates: 'Vorlagen', soon: 'Kommt bald', export: 'Export', copy: 'Kopieren',
       exportSvg: 'Als SVG speichern', exportPng: 'Als PNG speichern', settings: 'Einstellungen',
-      catalogPos: 'Katalog', propsPos: 'Eigenschaften', left: 'links', right: 'rechts', top: 'oben',
+      swapSides: 'Seiten tauschen', swapHint: 'Katalog rechts, Eigenschaften links', about: 'Über Snapparatus · Lizenzen',
+      credit: 'Zeichnungen: LaboBib © 1998 Dr. R. Rensch · Lizenz',
+      aboutHtml: `<p>Kostenloses Werkzeug zum Zeichnen von Laborapparaturen für Lehre, Skripte und Präsentationen.</p>
+        <h3>Gerätezeichnungen</h3>
+        <p>Alle Gerätezeichnungen stammen aus <b>LaboBib</b>, der Laborgerätebibliothek von <b>Dr. R. Rensch</b> (© 1998),
+        für das Zeichenprogramm <b>C-Design</b> (© 1988–1998 FoBasoft GmbH, © 2010 Dr. J. Bauer, Dr. E. Fontain).
+        Beide wurden als Freeware veröffentlicht. Lizenztext des Originals:</p>
+        <blockquote>${'Das Programm C-Design und die Laborgerätebibliothek LaboBib sind Freeware und können frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung kein Entgelt verlangt wird. Eine Distribution des Programms auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung der Autoren zulässig.'}</blockquote>
+        <h3>Programm</h3>
+        <p>Der Programmcode von Snapparatus steht unter der MIT-Lizenz. Sie gilt nicht für die Gerätezeichnungen.</p>
+        <p><a href="https://github.com/RainiHeini/Snapparatus" target="_blank" rel="noopener">Projekt auf GitHub</a></p>`,
       collapse: 'Ein-/ausklappen', zoomFit: 'Alles zeigen', search: 'Gerät suchen …', all: 'Alle',
       results: 'Suchergebnisse', noResults: 'Nichts gefunden.',
       emptyHint: 'Geräte aus dem Katalog hierher ziehen oder anklicken.<br>Schliffe rasten automatisch ein.', jointSize: 'Schliff',
@@ -37,7 +47,20 @@
       new: 'New', open: 'Open', save: 'Save', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y)',
       text: 'Text', arrow: 'Arrow', templates: 'Templates', soon: 'Coming soon', export: 'Export', copy: 'Copy',
       exportSvg: 'Save as SVG', exportPng: 'Save as PNG', settings: 'Settings',
-      catalogPos: 'Catalogue', propsPos: 'Properties', left: 'left', right: 'right', top: 'top',
+      swapSides: 'Swap sides', swapHint: 'Catalogue on the right, properties on the left', about: 'About Snapparatus · Licences',
+      credit: 'Drawings: LaboBib © 1998 Dr. R. Rensch · Licence',
+      aboutHtml: `<p>Free tool for drawing laboratory setups for teaching, lab manuals and presentations.</p>
+        <h3>Equipment drawings</h3>
+        <p>All equipment drawings come from <b>LaboBib</b>, the laboratory equipment library by <b>Dr. R. Rensch</b> (© 1998),
+        for the drawing program <b>C-Design</b> (© 1988–1998 FoBasoft GmbH, © 2010 Dr. J. Bauer, Dr. E. Fontain).
+        Both were released as freeware. Original licence text (German, authoritative):</p>
+        <blockquote lang="de">${'Das Programm C-Design und die Laborgerätebibliothek LaboBib sind Freeware und können frei verwendet und weitergegeben werden, solange für die Bereitstellung, Benutzung, oder Verteilung kein Entgelt verlangt wird. Eine Distribution des Programms auf gegen Entgelt zugängliche Medien ist nur mit Zustimmung der Autoren zulässig.'}</blockquote>
+        <p>Unofficial translation: the program C-Design and the laboratory equipment library LaboBib are freeware and may be
+        used and redistributed freely, as long as no fee is charged for providing, using or distributing them. Distribution
+        of the program on media available for a fee is only permitted with the consent of the authors.</p>
+        <h3>Program</h3>
+        <p>The Snapparatus source code is licensed under the MIT licence. It does not apply to the equipment drawings.</p>
+        <p><a href="https://github.com/RainiHeini/Snapparatus" target="_blank" rel="noopener">Project on GitHub</a></p>`,
       collapse: 'Collapse / expand', zoomFit: 'Show all', search: 'Search equipment …', all: 'All',
       results: 'Search results', noResults: 'Nothing found.',
       emptyHint: 'Drag or click equipment in the catalogue.<br>Ground glass joints snap together automatically.', jointSize: 'Joint',
@@ -64,7 +87,7 @@
     set(k, v) { try { localStorage.setItem('snapparatus.' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } },
   };
   const settings = Object.assign({ lang: (navigator.language || 'de').startsWith('de') ? 'de' : 'en',
-    posCatalog: 'left', posProps: 'right', catalogCollapsed: false, propsCollapsed: false }, store.get('settings', {}));
+    swap: false, catalogCollapsed: false, propsCollapsed: false }, store.get('settings', {}));
   const saveSettings = () => store.set('settings', settings);
 
   // ---------------------------------------------------------------- drawing state
@@ -697,23 +720,26 @@
   });
 
   // ---------------------------------------------------------------- layout (panel positions)
+  // catalogue left and properties right, or the other way round
   function applyLayout() {
-    const slots = { left: $('slotLeft'), right: $('slotRight'), top: $('slotTop') };
-    const cat = $('catalog'), props = $('props');
-    slots[settings.posCatalog].appendChild(cat); slots[settings.posProps].appendChild(props);
-    cat.className = `panel pos-${settings.posCatalog}${settings.catalogCollapsed ? ' collapsed' : ''}`;
-    props.className = `panel pos-${settings.posProps}${settings.propsCollapsed ? ' collapsed' : ''}`;
-    for (const [sel, key] of [['posCatalog', 'posCatalog'], ['posProps', 'posProps']]) {
-      $(sel).innerHTML = ['left', 'right', 'top'].map(v => `<option value="${v}" ${settings[key] === v ? 'selected' : ''}>${t(v)}</option>`).join('');
-    }
+    const [catPos, propsPos] = settings.swap ? ['right', 'left'] : ['left', 'right'];
+    const slot = { left: $('slotLeft'), right: $('slotRight') }, cat = $('catalog'), props = $('props');
+    slot[catPos].appendChild(cat); slot[propsPos].appendChild(props);
+    cat.className = `panel pos-${catPos}${settings.catalogCollapsed ? ' collapsed' : ''}`;
+    props.className = `panel pos-${propsPos}${settings.propsCollapsed ? ' collapsed' : ''}`;
+    $('swapSides').checked = settings.swap;
   }
-  function setPosition(which, value) {
-    const other = which === 'posCatalog' ? 'posProps' : 'posCatalog';
-    if (settings[other] === value) settings[other] = settings[which];   // never both in the same place
-    settings[which] = value; saveSettings(); applyLayout();
+  $('swapSides').addEventListener('change', e => { settings.swap = e.target.checked; saveSettings(); applyLayout(); });
+
+  // about: credits and licences
+  function showAbout() {
+    closeMenus();
+    $('aboutBody').innerHTML = t('aboutHtml');
+    $('aboutDialog').hidden = false;
+    $('aboutDialog').querySelector('.close').focus();
   }
-  $('posCatalog').addEventListener('change', e => setPosition('posCatalog', e.target.value));
-  $('posProps').addEventListener('change', e => setPosition('posProps', e.target.value));
+  function hideAbout() { $('aboutDialog').hidden = true; }
+  $('aboutDialog').addEventListener('click', ev => { if (ev.target.id === 'aboutDialog') hideAbout(); });
 
   // ---------------------------------------------------------------- language
   function applyLang() {
@@ -747,6 +773,7 @@
     collapseProps: () => { settings.propsCollapsed = !settings.propsCollapsed; saveSettings(); applyLayout(); },
     rotL: () => rotateSetup(-15), rotR: () => rotateSetup(15), mirror: mirrorSetup,
     duplicate: duplicateSelected, delete: deleteSelected, detach: detachSelected,
+    about: showAbout, closeAbout: hideAbout,
     text: () => toast(t('soon')), arrow: () => toast(t('soon')), templates: () => toast(t('soon')),
   };
   document.addEventListener('click', ev => {
@@ -766,7 +793,7 @@
     else if (k === 'delete' || k === 'backspace') { ev.preventDefault(); deleteSelected(); }
     else if (k === 'r') rotateSetup(ev.shiftKey ? -15 : 15);
     else if (k === 'm') mirrorSetup();
-    else if (k === 'escape') { selected = null; renderOverlay(); renderProps(); closeMenus(); }
+    else if (k === 'escape') { if (!$('aboutDialog').hidden) return hideAbout(); selected = null; renderOverlay(); renderProps(); closeMenus(); }
   });
 
   // ---------------------------------------------------------------- start

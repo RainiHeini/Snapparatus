@@ -32,15 +32,15 @@
     <div class="menu-wrap">
       <button class="btn ico" data-act="settings" data-tt="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
       <div class="menu wide" id="settingsMenu" hidden>
-        <label><span data-t="catalogPos"></span><select id="posCatalog"></select></label>
-        <label><span data-t="propsPos"></span><select id="posProps"></select></label>
+        <label class="switch"><span data-t="swapSides"></span><input type="checkbox" class="toggle" id="swapSides"></label>
+        <div class="hint" data-t="swapHint"></div>
       </div>
     </div>
+    <button class="btn ico" data-act="about" data-tt="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5v.5"/></svg></button>
     <div class="lang"><button data-lang="de">DE</button><button data-lang="en">EN</button></div>
   </header>
 
   <div id="main">
-    <div class="slot" id="slotTop"></div>
     <div class="row">
       <div class="slot" id="slotLeft"></div>
       <div id="canvasWrap">
@@ -73,6 +73,7 @@
       <div class="subcats" id="subcats"></div>
       <div class="subcats ns" id="nsFilter"></div>
       <div class="tiles" id="tiles"></div>
+      <button class="credit" data-act="about" data-t="credit"></button>
     </div>
   </aside>
 
@@ -83,6 +84,14 @@
     </div>
     <div id="propsBody"></div>
   </aside>
+
+  <div class="dialog-back" id="aboutDialog" hidden>
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+      <button class="btn ico close" data-act="closeAbout"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <h2 id="aboutTitle">Snapparatus</h2>
+      <div id="aboutBody"></div>
+    </div>
+  </div>
 
   <input type="file" id="fileInput" accept=".json,.svg,application/json,image/svg+xml" hidden>
   <script src="data/devices.js"></script>
