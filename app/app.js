@@ -59,7 +59,7 @@
       position: 'Lage', rotation: 'Drehung', rotateHint: 'dreht die ganze Apparatur um dieses Teil', mirror: 'Spiegeln',
       mirrorBtn: 'Horizontal', fill: 'Füllung', level: 'Füllhöhe', color: 'Farbe', joints: 'Anschlüsse',
       duplicate: 'Duplizieren', delete: 'Löschen', detach: 'Aus Apparatur lösen', unlink: 'Hier trennen',
-      socket: 'Hülse', cone: 'Kern', rubber: 'Gummikonus', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
+      socket: 'Hülse', cone: 'Kern', rubber: 'passt in jeden Hals', rubberSocket: 'nimmt einen Stiel auf', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
       trash: 'Zum Entfernen hierher ziehen', trashOver: 'Loslassen zum Entfernen',
       copied: 'Bild kopiert – in PowerPoint oder Word einfügen (Strg+V).',
       copyFailed: 'Kopieren nicht möglich – bitte „Export → Als PNG speichern“ verwenden.',
@@ -119,7 +119,7 @@
       position: 'Position', rotation: 'Rotation', rotateHint: 'turns the whole setup about this part', mirror: 'Mirror',
       mirrorBtn: 'Horizontal', fill: 'Liquid', level: 'Fill level', color: 'Colour', joints: 'Connections',
       duplicate: 'Duplicate', delete: 'Delete', detach: 'Take out of setup', unlink: 'Separate here',
-      socket: 'socket', cone: 'cone', rubber: 'rubber cone', base: 'base', support: 'support', hose: 'olive',
+      socket: 'socket', cone: 'cone', rubber: 'fits any neck', rubberSocket: 'takes a stem', base: 'base', support: 'support', hose: 'olive',
       trash: 'Drag here to remove', trashOver: 'Release to remove',
       copied: 'Image copied – paste it into PowerPoint or Word (Ctrl+V).',
       copyFailed: 'Copying is not possible here – please use “Export → Save as PNG”.',
@@ -1100,7 +1100,7 @@
     } else {
       const d = dev(p), cat = DATA.categories.find(c => c.key === d.category);
       const joints = d.snaps.filter(s => SNAPPABLE.has(s.type) || s.type === 'hose')
-        .map(s => `<span>${s.system === 'RUBBER' ? t('rubber') : t(s.type)}${s.ns ? ' NS ' + s.ns : ''}</span>`).join('');
+        .map(s => `<span>${s.system !== 'RUBBER' ? t(s.type) : s.type === 'socket' ? t('rubberSocket') : t('rubber')}${s.ns ? ' NS ' + s.ns : ''}</span>`).join('');
       $('propsTitle').textContent = d.name;
       body.innerHTML = `<div class="sub">${cat[settings.lang]}</div>
         ${joints ? `<div class="grp"><div class="t">${t('joints')}</div><div class="joints">${joints}</div></div>` : ''}

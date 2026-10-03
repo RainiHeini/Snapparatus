@@ -337,11 +337,14 @@ NAMES_BY_ID.update({f'statmat1/{k}': [g, n] for k, (g, n) in {
     '57-13-1': ('Stativmaterial', 'Stativ mit Fußplatte, Stange 80 cm'),
     '57-13-2': ('Stativmaterial', 'Stativ mit Fußplatte, Stange 60 cm'),
     '57-13-3': ('Stativmaterial', 'Stativ mit Fußplatte, Stange 40 cm'),
-    '57-13-4': ('Stativmaterial', 'Stativklemme, Backen rechts'),
-    '57-13-5': ('Stativmaterial', 'Stativklemme, Backen links'),
-    '57-13-6': ('Stativmaterial', 'Doppelmuffe'),
-    '57-13-7': ('Stativmaterial', 'Stativstange'),
-    '57-13-8': ('Stativmaterial', 'Querstange')}.items()})
+    '57-13-4': ('Stativmaterial', 'Fußplatte'),
+    '57-13-5': ('Stativmaterial', 'Stativklemme, Backen rechts'),
+    '57-13-6': ('Stativmaterial', 'Stativklemme, Backen links'),
+    '57-13-7': ('Stativmaterial', 'Doppelmuffe'),
+    '57-13-8': ('Stativmaterial', 'Stativstange 17 cm'),
+    '57-13-9': ('Stativmaterial', 'Querstange'),
+    '57-13-10': ('Stativmaterial', 'Stativstange 17 cm'),
+    '57-13-11': ('Stativmaterial', 'Stativstange 9 cm')}.items()})
 NAMES_BY_ID.update({f'trennen1/{k}': [g, n] for k, (g, n) in {
     '1-21-0': ('Saugflaschen und Nutschen', 'Saugflasche 100 mL'),
     '1-21-1': ('Saugflaschen und Nutschen', 'Nutsche für Saugflasche 100 mL'),
@@ -349,6 +352,9 @@ NAMES_BY_ID.update({f'trennen1/{k}': [g, n] for k, (g, n) in {
     '25-21-1': ('Saugflaschen und Nutschen', 'Nutsche für Saugflasche 500 mL'),
     '57-21-0': ('Saugflaschen und Nutschen', 'Saugflasche 1 Liter'),
     '57-21-1': ('Saugflaschen und Nutschen', 'Nutsche für Saugflasche 1 Liter'),
+    '1-21-2': ('Saugflaschen und Nutschen', 'Gummikonus für Saugflasche 100 mL'),
+    '25-21-2': ('Saugflaschen und Nutschen', 'Gummikonus für Saugflasche 500 mL'),
+    '57-21-2': ('Saugflaschen und Nutschen', 'Gummikonus für Saugflasche 1 Liter'),
     '101-21-0': ('Vakuum', 'Wasserstrahlpumpe, lang'),
     '101-21-1': ('Vakuum', 'Wasserhahn mit Schlauchtülle'),
     '101-21-2': ('Vakuum', 'Wasserstrahlpumpe, kurz'),
@@ -376,8 +382,10 @@ NAMES_BY_ID.update({f'minilab/{k}': [g, n] for k, (g, n) in {
     '115-12-8': ('Dosieren / Absperren', 'Pulvertrichter'),
     '115-12-9': ('Heizen / Temperaturmessen', 'Thermometer')}.items()})
 # Büchner funnels sit in the neck of a suction flask on a rubber cone, which fits any neck; the
-# original anchors them in the stem, at the height of the flask rim
+# original anchors funnel stem and rubber cone at the height of the flask rim. The rubber cone
+# goes into the neck and takes the stem at that same point; a funnel also fits a neck directly.
 RUBBER_CONE = {'trennen1/1-21-1', 'trennen1/25-21-1', 'trennen1/57-21-1'}
+RUBBER_RING = {'trennen1/1-21-2', 'trennen1/25-21-2', 'trennen1/57-21-2'}
 SUCTION_FLASKS = {'trennen1/1-21-0', 'trennen1/25-21-0', 'trennen1/57-21-0'}
 # loose collages instead of tables: one device = strokes that touch or cross each other, plus
 # whatever lies inside its outline (scale marks, liquid, flame); the CDW objects there group
@@ -388,6 +396,7 @@ COLLAGE_PALETTES = {'SAMMELSU'}
 COLLAGE_CELLS = {'minilab/115-12'}
 # vessel palettes where a missing bottom anchor is added at the lowest point
 ADD_BASE_PALETTES = {'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'FLASCHEN', 'ERLENMEY', 'BECHERGL', 'TRENNEN1', 'SAMMELSU'}
+SMALL_PART = 300          # 3 mm: a part with only a few strokes is kept from this size on
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
 FRAME_TOL = 60          # 0.6 mm: tolerance for "touches the edge"
 MIN_SEG = 200           # 2 mm: shorter axis-parallel pieces are never frames
@@ -904,7 +913,15 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         groups = merge_overlapping(groups, ds, MERGE_GAP*TW)
         if stroke_obj:
             groups = [h for g in groups for h in split_by_object(g, ds, stroke_obj)]
-        groups = [g for g in groups if len(g) >= min_geom]
+        def small_part(g):
+            # few strokes are usually stray marks, but simple parts (a rubber cone is one closed
+            # outline, a rod a rectangle) are drawn with few strokes too - not a lone line, though,
+            # and not a framed heading ("KÜHLER")
+            x0, y0, x1, y1 = _bbox([ds[i] for i in g])
+            if max(x1-x0, y1-y0) < SMALL_PART or min(x1-x0, y1-y0) < 30: return False
+            axis = all(abs(p[0]-q[0]) < 3 or abs(p[1]-q[1]) < 3 for i in g for p, q in zip(ds[i], ds[i][1:]))
+            return not (axis and any(x0 <= T[0] <= x1 and y0 <= T[1] <= y1 and re.search(r'[A-Za-zÄÖÜäöü]{3}', T[2]) for T in texts))
+        groups = [g for g in groups if len(g) >= min_geom or small_part(g)]
         return [[ds[i] for i in g] for g in groups] or [ds]
     os.makedirs(outdir, exist_ok=True)
     pal = os.path.splitext(os.path.basename(path))[0]
@@ -989,13 +1006,17 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
             if dev_id in RUBBER_CONE:
                 for sp in snaps: sp.update(type='cone', dir=90, ns=None, system='RUBBER')
+            if dev_id in RUBBER_RING and snaps:
+                top = min(snaps, key=lambda sp: sp['y'])
+                snaps = [dict(top, type='cone', dir=90, ns=None, width=None, system='RUBBER'),
+                         dict(top, type='socket', dir=270, ns=None, width=None, system='RUBBER')]
             if dev_id in SUCTION_FLASKS:                  # neck on top (any size), the side arm is a hose olive
                 top = min(snaps, key=lambda sp: sp['y'])
                 top.update(type='socket', dir=270, system='NS')
                 for sp in snaps:
                     if sp is not top and sp['type'] == 'socket': sp.update(type='hose', ns=None); sp.pop('system', None)
             hanging = pal in ('TROPFTRI', 'EXTRAKT1')
-            if pal in ADD_BASE_PALETTES and not any(sp['type'] in ('base', 'support') for sp in snaps):
+            if pal in ADD_BASE_PALETTES and dev_id not in RUBBER_RING and not any(sp['type'] in ('base', 'support') for sp in snaps):
                 # vessels the original left without a bottom anchor (e.g. some round-bottom flasks):
                 # add one at the lowest point, so they can stand on supports and be filled - but only
                 # if the bottom is broad like a vessel's, not the tip of a tube
@@ -1007,6 +1028,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                                   'width': None, 'ns': None, 'added': True})
             vessel = fill.vessel_regions(local, snaps, W, H, hanging=hanging) if fillable else None
             svg = emit_svg(ds, dt, ox, oy, W, H, snaps)
+            if dev_id in RUBBER_RING:                     # rubber is opaque: neck and stem disappear behind it
+                svg = svg.replace('fill="none"', 'fill="#fff"', 1)
             safe = fn_safe(name)
             fn = f"{pal}_{safe}.svg"; k = 1
             while os.path.exists(os.path.join(outdir, fn)):
