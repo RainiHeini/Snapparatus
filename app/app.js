@@ -659,7 +659,7 @@
   // ---------------------------------------------------------------- catalogue
   const REP = { flasks: 'Rundkolben NS 29 250', beakers: 'normale Form 250', condensers: 'Dimroth', distillation: 'Destillationsaufsätze NS29',
     adapters: 'Reduzierstücke 29-14', funnels: 'Trichter NS 29', measuring: 'Messzylinder 100', bottles: 'Steilbrustflaschen (Enghals) 250',
-    heating: 'Magnetrührer', stand: 'Stativmaterial', drying: 'Trockenrohre NS 29', misc: 'Sammelsurium' };
+    heating: 'Magnetrührer', stand: 'Stativmaterial', drying: 'Trockenrohre NS 29', misc: 'Bunsenbrenner mit Flamme' };
   let curCat = DATA.categories[0].key, curSub = null, curNS = null;
   const jointSizes = d => [...new Set(d.snaps.filter(s => s.ns && s.system === 'NS').map(s => s.ns))];
   const thumb = d => `<svg viewBox="${-d.w * 0.04} ${-d.h * 0.04} ${d.w * 1.08} ${d.h * 1.08}" preserveAspectRatio="xMidYMid meet">` +

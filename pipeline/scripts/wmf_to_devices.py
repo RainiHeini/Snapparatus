@@ -294,23 +294,43 @@ FILL_PALETTES = {'BECHERGL', 'DESTIL-1', 'DEWARGEF', 'EINLEIT1', 'ERLENMEY', 'EX
                  'TRENNEN1', 'TRENNEN2', 'TROPFTRI'}
 # palettes made of separate tables where the title stands only above the first one
 NAME_PREFIX = {'KRUEMM': 'Krümmer (Bogenstücke)'}
-# devices without any heading in the original, named by hand (stable ID -> catalogue path).
-# GEFSYMB holds the old EU hazard symbols (pre-GHS) in two rows; the pairs Xn/Xi, F/F+ and T/T+
-# share one pictogram, the original only told them apart by the code letter.
-NAMES_BY_ID = {
-    'gefsymb/1-1': ['Gefahrensymbole (alt, vor GHS)', 'Gesundheitsschädlich (Xn)'],
-    'gefsymb/7-1': ['Gefahrensymbole (alt, vor GHS)', 'Ätzend (C)'],
-    'gefsymb/13-1': ['Gefahrensymbole (alt, vor GHS)', 'Explosionsgefährlich (E)'],
-    'gefsymb/19-1': ['Gefahrensymbole (alt, vor GHS)', 'Leichtentzündlich (F)'],
-    'gefsymb/25-1': ['Gefahrensymbole (alt, vor GHS)', 'Giftig (T)'],
-    'gefsymb/1-7': ['Gefahrensymbole (alt, vor GHS)', 'Reizend (Xi)'],
-    'gefsymb/7-7': ['Gefahrensymbole (alt, vor GHS)', 'Umweltgefährlich (N)'],
-    'gefsymb/13-7': ['Gefahrensymbole (alt, vor GHS)', 'Brandfördernd (O)'],
-    'gefsymb/19-7': ['Gefahrensymbole (alt, vor GHS)', 'Hochentzündlich (F+)'],
-    'gefsymb/25-7': ['Gefahrensymbole (alt, vor GHS)', 'Sehr giftig (T+)'],
-}
+# devices without any heading in the original, named by hand: stable ID -> catalogue path,
+# the last entry is the name. GEFSYMB holds the old EU hazard symbols (pre-GHS) in two rows; the
+# pairs Xn/Xi, F/F+ and T/T+ share one pictogram, the original only told them apart by the code
+# letter. SAMMELSU is a loose collage under one heading (IDs in the order of split_collage).
+_HAZ = 'Gefahrensymbole (alt, vor GHS)'
+NAMES_BY_ID = {f'gefsymb/{k}': [_HAZ, 'Gefahrensymbol ' + n] for k, n in {
+    '1-1': 'Gesundheitsschädlich (Xn)', '7-1': 'Ätzend (C)', '13-1': 'Explosionsgefährlich (E)',
+    '19-1': 'Leichtentzündlich (F)', '25-1': 'Giftig (T)', '1-7': 'Reizend (Xi)',
+    '7-7': 'Umweltgefährlich (N)', '13-7': 'Brandfördernd (O)', '19-7': 'Hochentzündlich (F+)',
+    '25-7': 'Sehr giftig (T+)'}.items()}
+_SAMMELSU = [
+    'Kristallisierschale mit Ausguss', 'Spritze', 'Glasrohr, rechtwinklig gebogen', 'Glasstab', 'Glasstab',
+    'Glasrohrstück', 'Reagenzglasgestell', 'Gummistopfen mit Glasrohr', 'Gummistopfen mit Glasrohr',
+    'Glasrohr, gebogen, mit Stopfen', 'Glasrohrstück', 'Glasrohrstück, kurz', 'Gummistopfen',
+    'Kapillare mit Stopfen', 'Glasrohrstück, kurz', 'Reagenzglas', 'Glasrohr, weit',
+    'Becherglas 150 mL mit Beschriftungsfeld', 'Gummistopfen', 'Gaseinleitungsrohr mit Stopfen',
+    'Reagenzglas mit Bodensatz', 'Pasteurpipette', 'Schale mit Feststoff', 'Gaseinleitungsrohr mit Stopfen',
+    'Abdampfschale', 'Spatel', 'Pipettenhütchen', 'U-Rohr mit zwei Hähnen', 'Kristallisierschale',
+    'Glasstab', 'Gummistopfen, klein', 'Reagenzglas', 'Abdampfschale', 'Gummistopfen, klein',
+    'Reagenzglas mit Bodensatz', 'Glasrohrstück, kurz', 'Abdampfschale mit Feststoff',
+    'Gummistopfen mit Glasrohr', 'Gummistopfen mit Glasrohr', 'Gummistopfen', 'Pasteurpipette',
+    'Kapillare mit Stopfen', 'Glasrohrstück', 'Gaseinleitungsrohr mit Stopfen', 'Pipettenhütchen',
+    'Pasteurpipette', 'Kristallisierschale', 'Pipettenhütchen', 'Gummistopfen', 'Gummistopfen',
+    'Gummistopfen', 'Gummistopfen', 'Gaseinleitungsrohr mit Stopfen', 'Reagenzglas mit Bodensatz',
+    'Spritze', 'Reagenzglas', 'Glasrohr, gebogen, mit Stopfen', 'Spritzenzylinder', 'Spritzenkolben',
+    'Spritzenzylinder', 'Spritzenkolben', 'Kapillare mit Stopfen', 'Gummistopfen', 'Schüssel',
+    'Reagenzglas, umgedreht', 'Reagenzglas mit Feststoff', 'Gummistopfen, klein',
+    'Glasrohr, rechtwinklig gebogen', 'Zentrifugenglas (spitz)', 'Dreifuß mit Bunsenbrenner',
+    'Glasrohr, rechtwinklig gebogen', 'Winkelrohr in Reagenzglas', 'Kolbenprober-Kolben',
+    'Bunsenbrenner mit Flamme', 'Kolbenprober-Zylinder', 'Kolbenprober-Kolben', 'Kolbenprober-Zylinder']
+NAMES_BY_ID.update({f'sammelsu/1-13-{i}': ['Sammelsurium', n] for i, n in enumerate(_SAMMELSU)})
+# loose collages instead of tables: one device = strokes that touch or cross each other, plus
+# whatever lies inside its outline (scale marks, liquid, flame); the CDW objects there group
+# unrelated parts
+COLLAGE_PALETTES = {'SAMMELSU'}
 # vessel palettes where a missing bottom anchor is added at the lowest point
-ADD_BASE_PALETTES = {'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'FLASCHEN', 'ERLENMEY', 'BECHERGL', 'TRENNEN1'}
+ADD_BASE_PALETTES = {'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'FLASCHEN', 'ERLENMEY', 'BECHERGL', 'TRENNEN1', 'SAMMELSU'}
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
 FRAME_TOL = 60          # 0.6 mm: tolerance for "touches the edge"
 MIN_SEG = 200           # 2 mm: shorter axis-parallel pieces are never frames
@@ -520,6 +540,75 @@ def label_strokes(strokes, clines, cobj, bx, by, tol=30):
             if best is not None: votes[best] += 1
         if votes: out[id(s)] = votes.most_common(1)[0][0]
     return out
+
+def _seg_dist(p, q, r, s):
+    """Distance between the segments p-q and r-s."""
+    def cross(o, a, b): return (a[0]-o[0])*(b[1]-o[1]) - (a[1]-o[1])*(b[0]-o[0])
+    d1, d2, d3, d4 = cross(r, s, p), cross(r, s, q), cross(p, q, r), cross(p, q, s)
+    if ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0)) and d1 and d2 and d3 and d4: return 0.0
+    def pt(x, a, b):
+        dx, dy = b[0]-a[0], b[1]-a[1]; L = dx*dx+dy*dy
+        t = 0 if L == 0 else max(0, min(1, ((x[0]-a[0])*dx + (x[1]-a[1])*dy) / L))
+        return math.hypot(a[0]+t*dx-x[0], a[1]+t*dy-x[1])
+    return min(pt(p, r, s), pt(q, r, s), pt(r, p, q), pt(s, p, q))
+
+def split_collage(ds, tol=25, res=10, min_size=150):
+    """Devices of a loose collage: strokes that touch or cross (segment distance <= tol) form
+    one part; a part that lies inside the closed outline of a bigger one (scale marks, liquid,
+    flame) joins it. Parts smaller than min_size are dropped."""
+    from PIL import Image, ImageDraw
+    segs = [(si, p, q) for si, st in enumerate(ds) for p, q in (zip(st, st[1:]) if len(st) > 1 else [(st[0], st[0])])]
+    grid = {}
+    for k, (si, p, q) in enumerate(segs):
+        for gx in range(int(min(p[0], q[0]) - tol) // 200, int(max(p[0], q[0]) + tol) // 200 + 1):
+            for gy in range(int(min(p[1], q[1]) - tol) // 200, int(max(p[1], q[1]) + tol) // 200 + 1):
+                grid.setdefault((gx, gy), []).append(k)
+    par = list(range(len(ds)))
+    def find(x):
+        while par[x] != x: par[x] = par[par[x]]; x = par[x]
+        return x
+    for cell in grid.values():
+        for i, a in enumerate(cell):
+            for b in cell[i+1:]:
+                sa, sb = segs[a], segs[b]
+                if sa[0] == sb[0] or find(sa[0]) == find(sb[0]): continue
+                if _seg_dist(sa[1], sa[2], sb[1], sb[2]) <= tol: par[find(sa[0])] = find(sb[0])
+    groups = {}
+    for i in range(len(ds)): groups.setdefault(find(i), []).append(i)
+    groups = sorted(groups.values(), key=lambda g: -_area(_bbox([ds[i] for i in g])))
+    bbs = [_bbox([ds[i] for i in g]) for g in groups]
+    masks = {}
+    def inside_mask(k):                              # closed interior of group k, rasterised
+        if k not in masks:
+            x0, y0, x1, y1 = bbs[k]; w, h = int((x1-x0)/res) + 9, int((y1-y0)/res) + 9
+            im = Image.new('L', (w, h), 0); dr = ImageDraw.Draw(im)
+            for i in groups[k]:
+                pts = [((x-x0)/res + 4, (y-y0)/res + 4) for x, y in ds[i]]
+                dr.line(pts if len(pts) > 1 else pts * 2, fill=255, width=2)
+            ImageDraw.floodfill(im, (0, 0), 128)
+            masks[k] = (im.load(), x0, y0, w, h)
+        return masks[k]
+    owner = list(range(len(groups)))
+    for k in range(len(groups)):
+        a = bbs[k]
+        best = None                                  # bigger groups come first; smallest container wins
+        for j in range(k):
+            b = bbs[j]
+            if not (b[0] <= a[0] and b[1] <= a[1] and b[2] >= a[2] and b[3] >= a[3]): continue
+            px, x0, y0, w, h = inside_mask(j)
+            pts = [p for i in groups[k] for p in ds[i]]
+            hit = sum(1 for x, y in pts if px[int((x-x0)/res) + 4, int((y-y0)/res) + 4] != 128)
+            if hit >= 0.9 * len(pts) and (best is None or _area(bbs[j]) < _area(bbs[best])): best = j
+        if best is not None: owner[k] = best
+    def root(k):
+        while owner[k] != k: k = owner[k]
+        return k
+    out = {}
+    for k, g in enumerate(groups): out.setdefault(root(k), []).extend(g)
+    def size(g): x0, y0, x1, y1 = _bbox([ds[i] for i in g]); return max(x1-x0, y1-y0)
+    return [g for g in out.values() if size(g) >= min_size]
+
+def _area(bb): return (bb[2]-bb[0]) * (bb[3]-bb[1])
 
 def split_by_object(g, ds, stroke_obj, min_strokes=4):
     """Split a spatial group with strokes of several CDW objects into devices.
@@ -746,6 +835,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         return re.sub(r'[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß.]*', w, t)
     def split_cell(ds):
         """A cell can contain several devices WITHOUT a separator line -> split by gap."""
+        if pal in COLLAGE_PALETTES:
+            return [[ds[i] for i in g] for g in split_collage(ds)] or [ds]
         groups = cluster_strokes(ds, CLUSTER_THR*TW)
         groups = merge_overlapping(groups, ds, MERGE_GAP*TW)
         if stroke_obj:
@@ -821,6 +912,13 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 size = m.group(0) if m else ''
                 name = f'Korkring für Kolben {size}'.strip()
                 path = ['Korkringe für Kolben', size or name]
+            # stable ID: palette + cell position in the original (mm) + index within the cell
+            dev_id = f"{pal.lower()}/{ci['rect'][0]/100:.0f}-{ci['rect'][1]/100:.0f}" + (f"-{j}" if len(devs) > 1 else '')
+            if dev_id in NAMES_BY_ID:
+                path = NAMES_BY_ID[dev_id]; name = path[-1]
+            fillable = pal in FILL_PALETTES and 'Kühler' not in name   # coolant jackets are not vessels
+            if pal in COLLAGE_PALETTES:                   # rods, stoppers and bulbs are closed shapes too
+                fillable = bool(re.search(r'glas\b|schale|Schüssel', name, re.I))
             for sp in snaps:                                  # MINILAB parts use screw threads, not NS joints
                 if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
             hanging = pal in ('TROPFTRI', 'EXTRAKT1')
@@ -831,15 +929,10 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 low = max(py for st in local for _, py in st)
                 xs = [px for st in local for px, py in st if py >= low - 5]
                 band = [px for st in local for px, py in st if py >= low - 0.03 * H]
-                if max(band) - min(band) >= 0.3 * (W - 80):
+                if max(band) - min(band) >= 0.3 * (W - 80) or (pal in COLLAGE_PALETTES and fillable):
                     snaps.append({'x': round(sum(xs) / len(xs), 1), 'y': round(low, 1), 'type': 'base', 'dir': 90,
                                   'width': None, 'ns': None, 'added': True})
-            vessel = (fill.vessel_regions(local, snaps, W, H, hanging=hanging)
-                      if pal in FILL_PALETTES and 'Kühler' not in name else None)   # coolant jackets are not vessels
-            # stable ID: palette + cell position in the original (mm) + index within the cell
-            dev_id = f"{pal.lower()}/{ci['rect'][0]/100:.0f}-{ci['rect'][1]/100:.0f}" + (f"-{j}" if len(devs) > 1 else '')
-            if dev_id in NAMES_BY_ID:
-                path = NAMES_BY_ID[dev_id]; name = 'Gefahrensymbol ' + path[-1]
+            vessel = fill.vessel_regions(local, snaps, W, H, hanging=hanging) if fillable else None
             svg = emit_svg(ds, dt, ox, oy, W, H, snaps)
             safe = fn_safe(name)
             fn = f"{pal}_{safe}.svg"; k = 1
@@ -851,6 +944,9 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                              'cell_mm': [round(v/100, 1) for v in ci['rect']],
                              'w_mm': round(W/100, 1), 'h_mm': round(H/100, 1), 'labels': [T[2] for T in dt]})
             n += 1
+    ids = {m['id'] for m in manifest}
+    if any(k.startswith(pal.lower() + '/') and k not in ids for k in NAMES_BY_ID) or (pal == 'SAMMELSU' and n != len(_SAMMELSU)):
+        print(f"  WARN {pal}: the split no longer matches the hand-made names in NAMES_BY_ID - check them")
     json.dump(manifest, open(os.path.join(outdir, pal + '_manifest.json'), 'w', encoding='utf-8'),
               ensure_ascii=False, indent=2)
     print(f"{pal}: {n} devices from {len(cells)} cells -> {outdir}")
