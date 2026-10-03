@@ -8,7 +8,14 @@ Labels and scale marks enclosed by the liquid region count as inside, so a fill 
 out around them. If the flood reaches the image border the drawing has a gap there and the
 device is reported as not fillable instead of being filled wrongly.
 
-  vessel_regions(strokes, snaps, W, H, hanging=False) -> {"regions": [[x, y, ...], ...], "openings": [[x1, y1, x2, y2], ...]} or None
+  vessel_regions(strokes, snaps, W, H, hanging=False)
+    -> {"regions": [[x, y, ...], ...], "openings": [{"rim": [x1, y1, x2, y2], "entry": [[x, y], ...]}, ...]} or None
+
+An opening is where liquid can leave: the rim of a socket or the open top. "entry" is where it
+starts from inside the vessel: the open top itself, or for a socket the point where its neck
+meets the liquid region (necks are closed off by the line at the end of the ground zone, so the
+liquid never fills them). The app lets the liquid rise no higher than the lowest entry and pours
+it out of the rim when the vessel is tilted far enough.
 
 Requires Pillow.
 """
@@ -145,7 +152,7 @@ def vessel_regions(strokes, snaps, W, H, hanging=False):
         half = (s['width'] or 600) * 0.65
         seg = (s['x'] - ux*half, s['y'] - uy*half, s['x'] + ux*half, s['y'] + uy*half)
         dr.line([P(seg[0], seg[1]), P(seg[2], seg[3])], fill=0, width=LINE_PX + 2)
-        if s['type'] == 'socket': openings.append([round(v) for v in seg])   # liquid pours out here
+        if s['type'] == 'socket': openings.append({'rim': [round(v) for v in seg], 'snap': s})   # liquid pours out here
     top = min(q[1] for s in strokes for q in s)          # close the open top (beakers, cylinders)
     dr.rectangle([0, 0, w, P(0, top + TOP_BAND)[1]], fill=0)
     regions = []
@@ -159,8 +166,25 @@ def vessel_regions(strokes, snaps, W, H, hanging=False):
             regions.append([round((v - 1) * RES) for p in pts for v in p])
         if 'type' not in sd: break                        # funnel: the first body found is the one
     if not regions: return None
-    # open top: where the liquid region reaches the closing band
+    # where each socket's neck meets the liquid: walk from the rim into the vessel along its axis
+    inside = done.load()
+    out = []
+    for o in openings:
+        s = o['snap']; a = math.radians(s['dir']); dx, dy = -math.cos(a), -math.sin(a)
+        for k in range(1, int(max(W, H) / (RES / 2))):
+            x, y = s['x'] + dx * k * RES / 2, s['y'] + dy * k * RES / 2
+            px, py = P(x, y)
+            if not (0 <= px < w and 0 <= py < h): break
+            if inside[int(px), int(py)] == 255:
+                out.append({'rim': o['rim'], 'entry': [[round(x), round(y)]]}); break
+    # open top: the region reaches up to the closing band, or to just below it where the liquid
+    # runs out over a spout first; the top edge of the region is the rim then
     band_y = top + TOP_BAND
-    xs = [r[i] for r in regions for i in range(0, len(r), 2) if r[i+1] <= band_y + 2*RES]
-    if xs: openings.append([min(xs), round(band_y), max(xs), round(band_y)])
-    return {'regions': regions, 'openings': openings}
+    ys = [r[i+1] for r in regions for i in range(0, len(r), 2)]
+    if min(ys) <= band_y + 0.08 * H and not any(min(e[1] for e in o['entry']) <= min(ys) + 4 * RES for o in out):
+        ty = min(ys)
+        xs = [r[i] for r in regions for i in range(0, len(r), 2) if r[i+1] <= ty + 2*RES]
+        rim = [min(xs), round(ty), max(xs), round(ty)]
+        if rim[2] - rim[0] >= 0.2 * W:                    # a real opening, not the tip of a slanted tube
+            out.append({'rim': rim, 'entry': [rim[:2], rim[2:]]})
+    return {'regions': regions, 'openings': out}

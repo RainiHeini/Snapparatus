@@ -27,6 +27,8 @@ button { font: inherit; color: inherit; }
 .btn.primary { background: var(--accent); color: #fff; font-weight: 600; padding: 0 14px; }
 .btn.primary:hover { background: #0c6a78; }
 .btn.outline { border-color: var(--line); }
+.btn.small { height: 24px; padding: 0 8px; font-size: 12px; }
+.btn.small.on { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
 .btn.soon { opacity: .45; }
 .btn.on { background: var(--accent-soft); color: var(--accent); }
 .btn.danger { color: var(--danger); }

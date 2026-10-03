@@ -56,6 +56,9 @@
       drawing: 'Zeichnung', parts: n => `${n} ${n === 1 ? 'Teil' : 'Teile'}`, lineWidth: 'Strichstärke',
       thin: 'Dünn', normal: 'Normal', thick: 'Dick',
       howto: 'Teil ziehen: am passenden Schliff rastet es ein und richtet sich aus. Ein Klick im Katalog setzt das Teil an das ausgewählte Gerät an. Eingerastete Teile bleiben zusammen – zum Trennen ein Teil auswählen und am Schliff auf das rote Symbol klicken.',
+      pour: 'Ausgießen', pourHint: 'Das Gefäß ist so geneigt, dass Flüssigkeit ausläuft.', pourLength: 'Länge', pourWidth: 'Breite',
+      pourEnd: 'Ende', hardEnd: 'Scharf', softEnd: 'Auslaufend', auto: 'Auto', autoTip: 'so breit wie die Flüssigkeit an der Öffnung', widthOpening: 'wie die Öffnung (sie zeigt nach unten)',
+      outline: 'Kontur', outlineTip: 'Wasserlinie und Strahl mit feiner Randlinie, gut für Schwarz-Weiß-Druck',
       position: 'Lage', rotation: 'Drehung', rotateHint: 'dreht die ganze Apparatur um dieses Teil', mirror: 'Spiegeln',
       mirrorBtn: 'Horizontal', fill: 'Füllung', level: 'Füllhöhe', color: 'Farbe', joints: 'Anschlüsse',
       duplicate: 'Duplizieren', delete: 'Löschen', detach: 'Aus Apparatur lösen', unlink: 'Hier trennen',
@@ -117,6 +120,9 @@
       drawing: 'Drawing', parts: n => `${n} ${n === 1 ? 'part' : 'parts'}`, lineWidth: 'Line width',
       thin: 'Thin', normal: 'Normal', thick: 'Thick',
       howto: 'Drag a part: it snaps to a matching joint and aligns itself. Clicking in the catalogue attaches the part to the selected one. Snapped parts stay together – to separate them, select a part and click the red symbol at the joint.',
+      pour: 'Pouring', pourHint: 'The vessel is tilted so far that liquid runs out.', pourLength: 'Length', pourWidth: 'Width',
+      pourEnd: 'End', hardEnd: 'Sharp', softEnd: 'Fading', auto: 'Auto', autoTip: 'as wide as the liquid at the opening', widthOpening: 'as the opening (it faces down)',
+      outline: 'Outline', outlineTip: 'surface and stream with a fine edge line, good for black-and-white prints',
       position: 'Position', rotation: 'Rotation', rotateHint: 'turns the whole setup about this part', mirror: 'Mirror',
       mirrorBtn: 'Horizontal', fill: 'Liquid', level: 'Fill level', color: 'Colour', joints: 'Connections',
       duplicate: 'Duplicate', delete: 'Delete', detach: 'Take out of setup', unlink: 'Separate here',
@@ -369,26 +375,153 @@
   }
   // the liquid of a part lies directly below its own drawing, so a vessel in front also covers what
   // is behind it with its liquid
-  function fillShape(p) {                               // liquid of a part: outline polygons and the rectangle below the level
+  const POUR = { on: true, length: 2500, width: null, soft: true };   // width null: as wide as the liquid at the opening
+  // the corners of a device's drawing (its path), for finding the glass of a lip
+  function outline(d) {
+    if (!d._corners) {
+      const m = d.svg.match(/ d="([^"]+)"/), n = m ? m[1].match(/-?[\d.]+/g).map(Number) : [];
+      d._corners = []; for (let i = 0; i + 1 < n.length; i += 2) d._corners.push([n[i], n[i + 1]]);
+    }
+    return d._corners;
+  }
+  function glassTip(p, near, r) {                       // lowest corner of the drawing close to a point (world)
+    let best = null;
+    for (const [x, y] of outline(dev(p))) {
+      const w = toWorld(p, x, y);
+      if (Math.hypot(w[0] - near[0], w[1] - near[1]) <= r && w[1] >= near[1] && (!best || w[1] > best[1])) best = w;
+    }
+    return best;
+  }
+  // liquid of a part: outline polygons, the rectangle below the level and, when it runs out, the stream.
+  // The surface stays horizontal however the vessel is turned. It rises no higher than the lowest
+  // place where a neck or the open top begins (the "entry" of an opening); asking for more means the
+  // vessel runs over there, and if the rim of that opening lies lower than its entry, it pours out.
+  function fillShape(p) {
     const d = dev(p);
     if (!d.fill || !p.fill || !p.fill.on) return null;
-    // outline in world coordinates; the liquid surface stays horizontal however the vessel is turned
     const polys = d.fill.regions.map(r => { const out = []; for (let i = 0; i < r.length; i += 2) out.push(toWorld(p, r[i], r[i + 1])); return out; });
-    const ys = polys.flat().map(q => q[1]), xs = polys.flat().map(q => q[0]);
-    const top = Math.min(...ys), bot = Math.max(...ys), lvl = bot - (p.fill.level / 100) * (bot - top);
-    return { polys: polys.map(poly => poly.map(q => q.join(',')).join(' ')), x: Math.min(...xs), y: lvl,
-      width: Math.max(...xs) - Math.min(...xs), height: bot - lvl + 1, color: p.fill.color };
+    const all = polys.flat(), ys = all.map(q => q[1]), xs = all.map(q => q[0]);
+    const top = Math.min(...ys), bot = Math.max(...ys);
+    const want = bot - (p.fill.level / 100) * (bot - top);
+    let lvl = want, spill = null, spills = [], x0 = Math.min(...xs), x1 = Math.max(...xs), y1 = bot;
+    const unit = (x, y) => { const n = Math.hypot(x, y) || 1; return [x / n, y / n]; };
+    // every opening in world coordinates: rim ends (lip = the lower one), and for a neck the corners
+    // where it meets the vessel (e1 below the lip, e2 below the upper end of the rim)
+    const ops = (d.fill.openings || []).map(o => {
+      let a = toWorld(p, o.rim[0], o.rim[1]), b = toWorld(p, o.rim[2], o.rim[3]);
+      if (o.entry.length === 1) {                       // a socket's closing line is 1.3 times its width: the glass is inside
+        const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2], f = 1 / 1.3;
+        a = [m[0] + (a[0] - m[0]) * f, m[1] + (a[1] - m[1]) * f]; b = [m[0] + (b[0] - m[0]) * f, m[1] + (b[1] - m[1]) * f];
+      }
+      const [lip, high] = a[1] >= b[1] ? [a, b] : [b, a];
+      const op = { o, lip, high, neck: o.entry.length === 1, entry: Math.max(...o.entry.map(([x, y]) => toWorld(p, x, y)[1])) };
+      if (op.neck) {
+        const e = toWorld(p, ...o.entry[0]), mid = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+        op.e = e; op.e1 = [e[0] + lip[0] - mid[0], e[1] + lip[1] - mid[1]]; op.e2 = [e[0] + high[0] - mid[0], e[1] + high[1] - mid[1]];
+        op.sill = Math.min(op.e1[1], lip[1]);           // the liquid must rise above the whole lower wall of the neck
+      } else op.sill = lip[1];
+      return op;
+    });
+    // it pours through every opening whose lower edge lies below the surface
+    const outs = ops.filter(op => want < op.sill - 5);
+    if (!outs.length) {                                 // no pouring: the liquid stops where the lowest neck begins
+      const cap = Math.max(-Infinity, ...ops.map(op => op.entry));
+      if (lvl < cap - 5) lvl = cap;
+    } else {
+      // the surface stands where the fill level puts it (above an open top: not absurdly high)
+      for (const op of outs) if (!op.neck) lvl = Math.max(lvl, op.lip[1] - 0.3 * Math.hypot(op.high[0] - op.lip[0], op.high[1] - op.lip[1]));
+      for (const op of outs) if (op.neck) {             // a neck it pours through fills up to the surface too
+        const q = [op.e1, op.lip, op.high, op.e2];
+        polys.push(q);
+        for (const [x, y] of q) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+      }
+      const pour = Object.assign({}, POUR, p.fill.pour);
+      const cx = all.reduce((s, q) => s + q[0], 0) / all.length, cy = all.reduce((s, q) => s + q[1], 0) / all.length;
+      spills = outs.map(op => stream(p, op, lvl, pour, cx, cy, unit));
+      spill = spills[0];
+    }
+    return { polys: polys.map(poly => poly.map(q => q.join(',')).join(' ')), x: x0, y: lvl,
+      width: x1 - x0, height: y1 - lvl + 1, color: p.fill.color, spill, spills, outline: !!p.fill.outline };
+  }
+  // the stream out of one opening: it starts between the lowest glass of the opening (lower edge) and
+  // the surface where it meets the glass (upper edge, no higher than the opening), then takes on the
+  // chosen width. Out of an opening facing down it falls straight; else it bends tightly, then falls.
+  function stream(p, op, lvl, pour, cx, cy, unit) {
+    const { lip, high } = op, L = pour.length, w = pour.width, rimLen = Math.hypot(high[0] - lip[0], high[1] - lip[1]);
+    const rise = lip[1] - high[1], t = rise > 1 ? Math.min(1, (lip[1] - lvl) / rise) : 1;
+    const B = [lip[0] + (high[0] - lip[0]) * t, lip[1] + (high[1] - lip[1]) * t];
+    const A = glassTip(p, lip, Math.max(300, 0.3 * rimLen)) || lip;
+    let dir = unit(-(B[1] - A[1]), B[0] - A[0]);      // across the opening, away from the inside
+    if (((A[0] + B[0]) / 2 - cx) * dir[0] + ((A[1] + B[1]) / 2 - cy) * dir[1] < 0) dir = [-dir[0], -dir[1]];
+    const base = { on: pour.on, soft: pour.soft };
+    if (dir[1] > 0.57) {                                // facing down (more than 35°): falls straight from the part of the
+      // opening below the surface, between the glass of the lip (A) and where the surface meets the rim (B)
+      const [l, rt] = A[0] <= B[0] ? [A, B] : [B, A], w0 = rt[0] - l[0];
+      const top = Math.max(l[1], rt[1]), bottom = top + L, mx = (l[0] + rt[0]) / 2;
+      const edge = from => [from, [from[0], bottom]];
+      const left = edge(l), right = edge(rt);
+      return Object.assign(base, { x1: mx, y1: top, x2: mx, y2: bottom, w0, straight: true,
+        d: 'M' + left.map(q => q.join(',')).join(' L') + ' L' + right.reverse().map(q => q.join(',')).join(' L') + ' Z',
+        edges: 'M' + left.map(q => q.join(',')).join(' L') + ' M' + right.map(q => q.join(',')).join(' L') });
+    }
+    if (dir[1] < 0) dir = unit(dir[0] || 1e-6, 0);     // liquid does not climb out: at most level, then down
+    const M = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2], w0 = Math.hypot(B[0] - A[0], B[1] - A[1]);
+    const wid = w || w0, r = Math.max(w0, wid) * 0.9;  // reach of the bend
+    const c = [M[0] + dir[0] * r, M[1] + dir[1] * r], q = [c[0], c[1] + r];   // corner and end of the bend
+    const fall = Math.max(L - (q[1] - M[1]), 0);
+    const at = s => s <= 1                              // s in 0..2: bend (quadratic), then the straight fall
+      ? [[(1 - s) ** 2 * M[0] + 2 * (1 - s) * s * c[0] + s * s * q[0], (1 - s) ** 2 * M[1] + 2 * (1 - s) * s * c[1] + s * s * q[1]],
+         unit(2 * (1 - s) * (c[0] - M[0]) + 2 * s * (q[0] - c[0]), 2 * (1 - s) * (c[1] - M[1]) + 2 * s * (q[1] - c[1]))]
+      : [[q[0], q[1] + (s - 1) * fall], [0, 1]];
+    const t0 = at(0)[1], turn = (B[0] - M[0]) * -t0[1] + (B[1] - M[1]) * t0[0] < 0 ? -1 : 1;   // B lies on this side, all along
+    const sideB = [], sideA = [];
+    for (let i = 0; i <= 40; i++) {
+      const sv = i / 20, [[x, y], [tx, ty]] = at(sv);
+      const g = Math.min(1, sv), h = (w0 + (wid - w0) * g * g * (3 - 2 * g)) / 2;   // from the opening to the stream's width
+      const nx = -ty * turn, ny = tx * turn;
+      const u = Math.min(1, sv / 0.5), m = u * u * (3 - 2 * u);   // from the exact edge at the rim into the stream
+      sideB.push([B[0] + (x + nx * h - B[0]) * m, B[1] + (y + ny * h - B[1]) * m]);
+      sideA.push([A[0] + (x - nx * h - A[0]) * m, A[1] + (y - ny * h - A[1]) * m]);
+    }
+    const end = at(2)[0];
+    return Object.assign(base, { x1: M[0], y1: M[1], x2: end[0], y2: end[1], w0,
+      edges: 'M' + sideB.map(q => q.join(',')).join(' L') + ' M' + sideA.map(q => q.join(',')).join(' L'),
+      d: 'M' + sideB.map(q => q.join(',')).join(' L') + ' L' + sideA.reverse().map(q => q.join(',')).join(' L') + ' Z' });
+  }
+  // markup of a liquid: definitions and what lies below the vessel's drawing (the liquid and the
+  // stream, so the glass of neck and lip stays visible over it)
+  function shade(hex, k = 0.6) {                        // a darker tone of a colour (the white liquid gets grey)
+    const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(v * k));
+    return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+  function liquidSvg(p, id) {
+    const f = fillShape(p); if (!f) return null;
+    let defs = `<clipPath id="${id}">${f.polys.map(pts => `<polygon points="${pts}"/>`).join('')}</clipPath>`, above = '';
+    const dark = shade(f.color), lw = (LINE[state.lineWidth] || 14) * 0.6;
+    let below = `<rect class="fill" x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="${f.color}" clip-path="url(#${id})"/>`;
+    if (f.outline) below += `<line class="fill" x1="${f.x}" y1="${f.y}" x2="${f.x + f.width}" y2="${f.y}" stroke="${dark}" style="stroke-width:${lw}px" clip-path="url(#${id})"/>`;
+    const fade = (gid, col, s) => `<linearGradient id="${gid}" gradientUnits="userSpaceOnUse" x1="${s.x1}" y1="${s.y1}" x2="${s.x2}" y2="${s.y2}">` +
+      `<stop offset="0" stop-color="${col}"/><stop offset="0.55" stop-color="${col}"/><stop offset="1" stop-color="${col}" stop-opacity="0"/></linearGradient>`;
+    (f.spills || []).forEach((s, k) => {
+      if (!s.on) return;
+      if (s.soft) defs += fade(`${id}g${k}`, f.color, s);
+      above += `<path class="fill" d="${s.d}" fill="${s.soft ? `url(#${id}g${k})` : f.color}" stroke="none"/>`;
+      if (f.outline) {
+        if (s.soft) defs += fade(`${id}e${k}`, dark, s);
+        above += `<path class="fill" d="${s.edges}" fill="none" stroke="${s.soft ? `url(#${id}e${k})` : dark}" style="stroke-width:${lw}px"/>`;
+      }
+    });
+    return { defs, below: below + above, above: '' };
   }
   function renderFills() {
     const defs = $('defs');
     defs.innerHTML = ''; $('parts').querySelectorAll('.fill').forEach(f => f.remove());
     for (const p of state.parts) {
-      const f = fillShape(p); if (!f) continue;
-      const cp = el('clipPath', { id: 'clip' + p.id });
-      for (const pts of f.polys) cp.appendChild(el('polygon', { points: pts }));
-      defs.appendChild(cp);
-      $('parts').insertBefore(el('rect', { class: 'fill', x: f.x, y: f.y, width: f.width, height: f.height,
-        fill: f.color, 'clip-path': `url(#clip${p.id})` }), partEls.get(p.id));
+      const l = liquidSvg(p, 'clip' + p.id); if (!l) continue;
+      defs.insertAdjacentHTML('beforeend', l.defs);
+      const g = partEls.get(p.id);
+      g.insertAdjacentHTML('beforebegin', l.below);
+      if (l.above) g.insertAdjacentHTML('afterend', l.above);
     }
   }
   let snapHints = [], activeSnap = null;
@@ -908,12 +1041,10 @@
     const m = 0.04 * Math.max(b.x1 - b.x0, b.y1 - b.y0), clipId = 'tplc' + (++previewCount) + '_';
     let defs = '', body = '';
     for (const p of parts) {
-      const f = fillShape(p);
-      if (f) {
-        defs += `<clipPath id="${clipId}${p.id}">${f.polys.map(pts => `<polygon points="${pts}"/>`).join('')}</clipPath>`;
-        body += `<rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="${f.color}" clip-path="url(#${clipId}${p.id})"/>`;
-      }
+      const l = liquidSvg(p, clipId + p.id);
+      if (l) { defs += l.defs; body += l.below; }
       body += `<g transform="${transformOf(p)}">${dev(p).svg.replace('<path ', '<path vector-effect="non-scaling-stroke" style="stroke-width:1px" ')}</g>`;
+      if (l) body += l.above;
     }
     body += notes.map(noteSvg).join('');
     return `<svg viewBox="${b.x0 - m} ${b.y0 - m} ${b.x1 - b.x0 + 2 * m} ${b.y1 - b.y0 + 2 * m}" preserveAspectRatio="xMidYMid meet">` +
@@ -951,10 +1082,11 @@
     if (isEmpty()) return null;
     const b = drawingBox(), m = 300;
     const x0 = b.x0 - m, y0 = b.y0 - m, w = b.x1 - b.x0 + 2 * m, h = b.y1 - b.y0 + 2 * m;
-    const defs = $('defs').innerHTML, fillOf = new Map([...$('parts').querySelectorAll('.fill')].map(f => [f.nextElementSibling, f]));
+    let defs = '';
     const parts = state.parts.map(p => {
-      const f = fillOf.get(partEls.get(p.id));
-      return (f ? f.outerHTML.replace(/ class="fill"/, '') : '') + `<g transform="${transformOf(p)}">${dev(p).svg}</g>`;
+      const l = liquidSvg(p, 'clip' + p.id); if (l) defs += l.defs;
+      const strip = h => (h || '').replace(/ class="fill"/, '');
+      return strip(l && l.below) + `<g transform="${transformOf(p)}">${dev(p).svg}</g>` + strip(l && l.above);
     }).join('') + state.notes.map(noteSvg).join('');
     const meta = withMeta ? `<metadata id="snapparatus">${JSON.stringify(projectData()).replace(/&/g, '&amp;').replace(/</g, '&lt;')}</metadata>` : '';
     const sw = LINE[state.lineWidth] || 14;
@@ -1183,6 +1315,17 @@
     if (s.type === 'socket' && !s.ns && s.system === 'NS') return t('plainNeck');
     return t(s.type);
   }
+  function pourGrp(p) {                                // shown only while the tilted vessel runs out
+    const f = fillShape(p); if (!f || !f.spill) return '';
+    const o = Object.assign({}, POUR, p.fill.pour);
+    return `<div class="grp"><div class="t">${t('pour')} <input type="checkbox" class="toggle" id="pourOn" ${o.on ? 'checked' : ''}></div>
+      <div class="hint" style="margin-bottom:6px">${t('pourHint')}</div>
+      <div class="row2"><label>${t('pourLength')}</label><input type="range" id="pourLen" min="400" max="8000" step="100" value="${o.length}"></div>
+      ${f.spills.every(s => s.straight) ? `<div class="row2"><label>${t('pourWidth')}</label><span class="hint">${t('widthOpening')}</span></div>`
+        : `<div class="row2"><label>${t('pourWidth')}</label><input type="range" id="pourWidth" min="30" max="600" step="10" value="${Math.round(o.width || f.spill.w0)}">
+        <button class="btn outline small${o.width ? '' : ' on'}" data-act="pourAuto" title="${t('autoTip')}">${t('auto')}</button></div>`}
+      <div class="row2"><label>${t('pourEnd')}</label>${seg('pourend', o.soft ? 'soft' : 'hard', [['hard', t('hardEnd')], ['soft', t('softEnd')]])}</div></div>`;
+  }
   function renderProps() {
     const body = $('propsBody'), p = selected && part(selected), n = selected && note(selected);
     if (n) {
@@ -1218,8 +1361,10 @@
         </div>
         ${d.fill && p.fill ? `<div class="grp"><div class="t">${t('fill')} <input type="checkbox" class="toggle" id="fillOn" ${p.fill.on ? 'checked' : ''}></div>
           <div class="row2"><label>${t('level')}</label><input type="range" id="fillLevel" min="0" max="100" value="${p.fill.level}"><span id="fillVal">${p.fill.level} %</span></div>
+          <div class="row2"><label>${t('outline')}</label><input type="checkbox" class="toggle" id="fillOutline" title="${t('outlineTip')}" ${p.fill.outline ? 'checked' : ''}></div>
           <div class="row2"><label>${t('color')}</label><div class="swatches">${COLORS.map(c => `<button data-color="${c}" class="${p.fill.color === c ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div></div>
         </div>` : ''}
+        ${pourGrp(p)}
         ${actionsGrp(state.links.some(l => l.p1 === p.id || l.p2 === p.id))}`;
       const rotIn = $('rotIn');
       rotIn.addEventListener('change', () => setRotation(+rotIn.value || 0));
@@ -1231,7 +1376,17 @@
           p.fill.level = +e.target.value; if (!p.fill.on) { p.fill.on = true; $('fillOn').checked = true; }
           $('fillVal').textContent = p.fill.level + ' %'; renderFills();
         });
-        $('fillLevel').addEventListener('change', () => { if (liveBefore) { const b = liveBefore; liveBefore = null; commit(b); } });
+        $('fillLevel').addEventListener('change', () => { if (liveBefore) { const b = liveBefore; liveBefore = null; commit(b); renderProps(); } });
+      }
+      if ($('fillOutline')) $('fillOutline').addEventListener('change', e => { const b = snapshot(); p.fill.outline = e.target.checked; commit(b); });
+      if ($('pourOn')) {                                  // stream: live while dragging the sliders, one undo step
+        const set = (k, v) => { p.fill.pour = Object.assign({}, POUR, p.fill.pour, { [k]: v }); };
+        $('pourOn').addEventListener('change', e => { const b = snapshot(); set('on', e.target.checked); commit(b); });
+        for (const [id, k] of [['pourLen', 'length'], ['pourWidth', 'width']].filter(([id]) => $(id))) {
+          let liveBefore = null;
+          $(id).addEventListener('input', e => { liveBefore = liveBefore || snapshot(); set(k, +e.target.value); renderFills(); });
+          $(id).addEventListener('change', () => { if (liveBefore) { const b = liveBefore; liveBefore = null; commit(b); } });
+        }
       }
     }
   }
@@ -1247,6 +1402,8 @@
     if (lw) { const b = snapshot(); state.lineWidth = lw.dataset.lw; commit(b); return; }
     const sz = ev.target.closest('[data-size]');
     if (sz) { const b = snapshot(); note(selected).size = lastTextSize = sz.dataset.size; commit(b); return; }
+    const pe = ev.target.closest('[data-pourend]');
+    if (pe) { const p = part(selected), b = snapshot(); p.fill.pour = Object.assign({}, POUR, p.fill.pour, { soft: pe.dataset.pourend === 'soft' }); commit(b); return; }
     const hd = ev.target.closest('[data-head]');
     if (hd) { const b = snapshot(); note(selected).head = hd.dataset.head; commit(b); return; }
     const c = ev.target.closest('[data-color]');
@@ -1311,6 +1468,7 @@
     about: showAbout, closeAbout: hideAbout,
     text: () => setTool(tool === 'text' ? null : 'text'), arrow: () => setTool(tool === 'arrow' ? null : 'arrow'),
     editText: () => editText(selected), templates: templatesDialog,
+    pourAuto: () => { const p = part(selected); if (!p) return; const b = snapshot(); p.fill.pour = Object.assign({}, POUR, p.fill.pour, { width: null }); commit(b); },
   };
   document.addEventListener('click', ev => {
     const b = ev.target.closest('[data-act]');

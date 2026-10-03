@@ -7,8 +7,8 @@ PowerPoint.
 **[Open Snapparatus in your browser](https://rainiheini.github.io/Snapparatus/)** - no
 installation, no account.
 
-> **Status:** working prototype. Snapping, rotating, liquid fills, labels and arrows, templates,
-> export and project files work; hoses and pouring are still to come. To use it offline, download
+> **Status:** working prototype. Snapping, rotating, liquid fills and pouring, labels and arrows,
+> templates, export and project files work; hoses are still to come. To use it offline, download
 > the repository and open `app/index.html` in Chrome, Edge or Firefox.
 
 ## What it will do
@@ -19,8 +19,8 @@ installation, no account.
   parts line up with the axes of the others by gentle alignment guides.
 - Copy and paste the drawing straight into PowerPoint or Word, or export SVG/PNG
   (transparent background, high resolution, adjustable line width).
-- Fill vessels with coloured liquid (fill level in percent, colour); pour from tilted vessels
-  with adjustable stream length and width.
+- Fill vessels with coloured liquid (fill level in percent, colour); a tilted vessel pours,
+  with adjustable stream length, width and end.
 - Add labels and arrows, and bring parts to the front or send them to the back.
 - Save your work as a project file and continue later.
 - Runs in any modern browser: online via GitHub Pages, or offline by opening `app/index.html`.
@@ -33,9 +33,9 @@ installation, no account.
    fillable vessels.~~ Done.
 2. ~~**Core app:** catalogue, canvas, joint-aware snapping with automatic alignment, rotation,
    liquid fills, copy/paste and export, project files.~~ Working prototype.
-3. **Teaching features:** ~~labels and arrows, alignment guides, first templates~~ (done); more
-   templates, hoses between hose connections (e.g. cooling water, vacuum) that follow the parts
-   when they move, pouring from tilted vessels (stream length and width).
+3. **Teaching features:** ~~labels and arrows, alignment guides, first templates, pouring from
+   tilted vessels~~ (done); more templates, hoses between hose connections (e.g. cooling water,
+   vacuum) that follow the parts when they move.
 4. **Later:** stand with sliding clamps, English device names.
 
 ## Repository layout
