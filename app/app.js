@@ -36,7 +36,7 @@
       arrowHint: 'Die Enden lassen sich ziehen, mit gedrückter Umschalttaste in 15°-Schritten.',
       exportSvg: 'Als SVG speichern', exportPng: 'Als PNG speichern', settings: 'Einstellungen',
       swapSides: 'Seiten tauschen', swapHint: 'Katalog rechts, Eigenschaften links', about: 'Über Snapparatus · Lizenzen',
-      credit: 'Zeichnungen: LaboBib © Dr. Rainer Rensch · Lizenz',
+      credit: 'Zeichnungen: LaboBib · Lizenz',
       aboutHtml: `<p>Kostenloses Werkzeug zum Zeichnen von Laborapparaturen für Lehre, Skripte und Präsentationen.</p>
         <h3>Gerätezeichnungen</h3>
         <p>Alle Gerätezeichnungen stammen aus <a href="https://fontain.userweb.mwn.de/C-Design/LaboBib.htm" target="_blank" rel="noopener"><b>LaboBib</b></a>,
@@ -59,7 +59,7 @@
       position: 'Lage', rotation: 'Drehung', rotateHint: 'dreht die ganze Apparatur um dieses Teil', mirror: 'Spiegeln',
       mirrorBtn: 'Horizontal', fill: 'Füllung', level: 'Füllhöhe', color: 'Farbe', joints: 'Anschlüsse',
       duplicate: 'Duplizieren', delete: 'Löschen', detach: 'Aus Apparatur lösen', unlink: 'Hier trennen',
-      socket: 'Hülse', cone: 'Kern', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
+      socket: 'Hülse', cone: 'Kern', rubber: 'Gummikonus', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
       trash: 'Zum Entfernen hierher ziehen', trashOver: 'Loslassen zum Entfernen',
       copied: 'Bild kopiert – in PowerPoint oder Word einfügen (Strg+V).',
       copyFailed: 'Kopieren nicht möglich – bitte „Export → Als PNG speichern“ verwenden.',
@@ -91,7 +91,7 @@
       arrowHint: 'Drag the ends to change the arrow; hold Shift for 15° steps.',
       exportSvg: 'Save as SVG', exportPng: 'Save as PNG', settings: 'Settings',
       swapSides: 'Swap sides', swapHint: 'Catalogue on the right, properties on the left', about: 'About Snapparatus · Licences',
-      credit: 'Drawings: LaboBib © Dr. Rainer Rensch · Licence',
+      credit: 'Drawings: LaboBib · Licence',
       aboutHtml: `<p>Free tool for drawing laboratory setups for teaching, lab manuals and presentations.</p>
         <h3>Equipment drawings</h3>
         <p>All equipment drawings come from <a href="https://fontain.userweb.mwn.de/C-Design/LaboBib.htm" target="_blank" rel="noopener"><b>LaboBib</b></a>,
@@ -119,7 +119,7 @@
       position: 'Position', rotation: 'Rotation', rotateHint: 'turns the whole setup about this part', mirror: 'Mirror',
       mirrorBtn: 'Horizontal', fill: 'Liquid', level: 'Fill level', color: 'Colour', joints: 'Connections',
       duplicate: 'Duplicate', delete: 'Delete', detach: 'Take out of setup', unlink: 'Separate here',
-      socket: 'socket', cone: 'cone', base: 'base', support: 'support', hose: 'olive',
+      socket: 'socket', cone: 'cone', rubber: 'rubber cone', base: 'base', support: 'support', hose: 'olive',
       trash: 'Drag here to remove', trashOver: 'Release to remove',
       copied: 'Image copied – paste it into PowerPoint or Word (Ctrl+V).',
       copyFailed: 'Copying is not possible here – please use “Export → Save as PNG”.',
@@ -173,8 +173,8 @@
   const SNAPPABLE = new Set(['socket', 'cone', 'base', 'support']);
   const used = (pid, j) => state.links.some(l => (l.p1 === pid && l.j1 === j) || (l.p2 === pid && l.j2 === j));
   function compatible(a, b) {
-    if ((a.type === 'socket' && b.type === 'cone') || (a.type === 'cone' && b.type === 'socket'))
-      return a.ns === b.ns && a.system === b.system;
+    if ((a.type === 'socket' && b.type === 'cone') || (a.type === 'cone' && b.type === 'socket'))   // a rubber cone fits any neck
+      return a.system === 'RUBBER' || b.system === 'RUBBER' || (a.ns === b.ns && a.system === b.system);
     return (a.type === 'base' && b.type === 'support') || (a.type === 'support' && b.type === 'base');
   }
   function component(id, links = state.links) {
@@ -962,7 +962,7 @@
   // ---------------------------------------------------------------- catalogue
   const REP = { flasks: 'Rundkolben NS 29 250', beakers: 'normale Form 250', condensers: 'Dimroth', distillation: 'Destillationsaufsätze NS29',
     adapters: 'Reduzierstücke 29-14', funnels: 'Trichter NS 29', measuring: 'Messzylinder 100', bottles: 'Steilbrustflaschen (Enghals) 250',
-    heating: 'Magnetrührer', stand: 'Stativmaterial', drying: 'Trockenrohre NS 29', misc: 'Bunsenbrenner mit Flamme' };
+    heating: 'Magnetrührer', stand: 'Laborhebebühne ausgefahren, Kurbel links', drying: 'Trockenrohre NS 29', misc: 'Bunsenbrenner mit Flamme' };
   let curCat = DATA.categories[0].key, curSub = null, curNS = null;
   const jointSizes = d => [...new Set(d.snaps.filter(s => s.ns && s.system === 'NS').map(s => s.ns))];
   const thumb = d => `<svg viewBox="${-d.w * 0.04} ${-d.h * 0.04} ${d.w * 1.08} ${d.h * 1.08}" preserveAspectRatio="xMidYMid meet">` +
@@ -1100,7 +1100,7 @@
     } else {
       const d = dev(p), cat = DATA.categories.find(c => c.key === d.category);
       const joints = d.snaps.filter(s => SNAPPABLE.has(s.type) || s.type === 'hose')
-        .map(s => `<span>${t(s.type)}${s.ns ? ' NS ' + s.ns : ''}</span>`).join('');
+        .map(s => `<span>${s.system === 'RUBBER' ? t('rubber') : t(s.type)}${s.ns ? ' NS ' + s.ns : ''}</span>`).join('');
       $('propsTitle').textContent = d.name;
       body.innerHTML = `<div class="sub">${cat[settings.lang]}</div>
         ${joints ? `<div class="grp"><div class="t">${t('joints')}</div><div class="joints">${joints}</div></div>` : ''}

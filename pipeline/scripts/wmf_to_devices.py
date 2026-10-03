@@ -325,10 +325,67 @@ _SAMMELSU = [
     'Glasrohr, rechtwinklig gebogen', 'Winkelrohr in Reagenzglas', 'Kolbenprober-Kolben',
     'Bunsenbrenner mit Flamme', 'Kolbenprober-Zylinder', 'Kolbenprober-Kolben', 'Kolbenprober-Zylinder']
 NAMES_BY_ID.update({f'sammelsu/1-13-{i}': ['Sammelsurium', n] for i, n in enumerate(_SAMMELSU)})
+# STATMAT1 and TRENNEN1 share one heading for very different parts
+NAMES_BY_ID.update({f'statmat1/{k}': [g, n] for k, (g, n) in {
+    '1-13-0': ('Laborhebebühnen', 'Laborhebebühne ausgefahren, Kurbel links'),
+    '1-13-1': ('Laborhebebühnen', 'Laborhebebühne eingefahren, Kurbel links'),
+    '1-13-2': ('Laborhebebühnen', 'Laborhebebühne eingefahren, Kurbel rechts'),
+    '1-13-3': ('Laborhebebühnen', 'Laborhebebühne ausgefahren, Kurbel rechts'),
+    '1-13-4': ('Laborhebebühnen', 'Laborhebebühne ausgefahren, von vorn'),
+    '1-13-5': ('Laborhebebühnen', 'Laborhebebühne eingefahren, von vorn'),
+    '57-13-0': ('Stativmaterial', 'Stativ mit Fußplatte, Stange 100 cm'),
+    '57-13-1': ('Stativmaterial', 'Stativ mit Fußplatte, Stange 80 cm'),
+    '57-13-2': ('Stativmaterial', 'Stativ mit Fußplatte, Stange 60 cm'),
+    '57-13-3': ('Stativmaterial', 'Stativ mit Fußplatte, Stange 40 cm'),
+    '57-13-4': ('Stativmaterial', 'Stativklemme, Backen rechts'),
+    '57-13-5': ('Stativmaterial', 'Stativklemme, Backen links'),
+    '57-13-6': ('Stativmaterial', 'Doppelmuffe'),
+    '57-13-7': ('Stativmaterial', 'Stativstange'),
+    '57-13-8': ('Stativmaterial', 'Querstange')}.items()})
+NAMES_BY_ID.update({f'trennen1/{k}': [g, n] for k, (g, n) in {
+    '1-21-0': ('Saugflaschen und Nutschen', 'Saugflasche 100 mL'),
+    '1-21-1': ('Saugflaschen und Nutschen', 'Nutsche für Saugflasche 100 mL'),
+    '25-21-0': ('Saugflaschen und Nutschen', 'Saugflasche 500 mL'),
+    '25-21-1': ('Saugflaschen und Nutschen', 'Nutsche für Saugflasche 500 mL'),
+    '57-21-0': ('Saugflaschen und Nutschen', 'Saugflasche 1 Liter'),
+    '57-21-1': ('Saugflaschen und Nutschen', 'Nutsche für Saugflasche 1 Liter'),
+    '101-21-0': ('Vakuum', 'Wasserstrahlpumpe, lang'),
+    '101-21-1': ('Vakuum', 'Wasserhahn mit Schlauchtülle'),
+    '101-21-2': ('Vakuum', 'Wasserstrahlpumpe, kurz'),
+    '101-21-3': ('Vakuum', 'Y-Stück'),
+    '101-21-4': ('Vakuum', 'Dreiwegehahn'),
+    '101-21-5': ('Vakuum', 'Wasserhahn mit Schlauchtülle'),
+    '101-21-6': ('Vakuum', 'U-Rohr-Manometer'),
+    '101-21-7': ('Vakuum', 'Woulfesche Flasche')}.items()})
+NAMES_BY_ID.update({f'minilab/{k}': [g, n] for k, (g, n) in {
+    '32-12-0': ('Gewinderohre', 'Gewinderohr mit Seitenarm'),
+    '32-12-1': ('Gewinderohre', 'Gewinderohr'),
+    '32-12-2': ('Gewinderohre', 'Blatt (Pflanzenmaterial)'),
+    '32-12-3': ('Gewinderohre', 'Gewinderohr mit Seitenarm'),
+    '32-12-4': ('Gewinderohre', 'Gewinderohr mit Füllkörpern'),
+    '59-12-0': ('T-Stück', 'T-Stück'),
+    '59-12-1': ('T-Stück', 'T-Stück'),
+    '115-12-0': ('Heizen / Temperaturmessen', 'Digitalthermometer'),
+    '115-12-1': ('Dosieren / Absperren', 'Tropftrichter'),
+    '115-12-2': ('Dosieren / Absperren', 'Combitip mit Adapter'),
+    '115-12-3': ('Dosieren / Absperren', 'Absperrhahn'),
+    '115-12-4': ('Heizen / Temperaturmessen', 'Thermofühler, Griff links'),
+    '115-12-5': ('Heizen / Temperaturmessen', 'Thermofühler, Griff rechts'),
+    '115-12-6': ('Heizen / Temperaturmessen', 'Thermoblock'),
+    '115-12-7': ('Dosieren / Absperren', 'Combitip'),
+    '115-12-8': ('Dosieren / Absperren', 'Pulvertrichter'),
+    '115-12-9': ('Heizen / Temperaturmessen', 'Thermometer')}.items()})
+# Büchner funnels sit in the neck of a suction flask on a rubber cone, which fits any neck; the
+# original anchors them in the stem, at the height of the flask rim
+RUBBER_CONE = {'trennen1/1-21-1', 'trennen1/25-21-1', 'trennen1/57-21-1'}
+SUCTION_FLASKS = {'trennen1/1-21-0', 'trennen1/25-21-0', 'trennen1/57-21-0'}
 # loose collages instead of tables: one device = strokes that touch or cross each other, plus
 # whatever lies inside its outline (scale marks, liquid, flame); the CDW objects there group
 # unrelated parts
 COLLAGE_PALETTES = {'SAMMELSU'}
+# single cells that are collages: the MINILAB corner with dosing and temperature parts is a nested
+# table whose frame does not reach across the cell (the thermometer runs through it)
+COLLAGE_CELLS = {'minilab/115-12'}
 # vessel palettes where a missing bottom anchor is added at the lowest point
 ADD_BASE_PALETTES = {'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'FLASCHEN', 'ERLENMEY', 'BECHERGL', 'TRENNEN1', 'SAMMELSU'}
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
@@ -833,10 +890,16 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
             if len(x) >= 4 and x.isupper(): return x[0] + x[1:].lower()
             return x
         return re.sub(r'[A-Za-zÄÖÜäöüß][A-Za-zÄÖÜäöüß.]*', w, t)
-    def split_cell(ds):
+    def split_cell(ds, collage=False, framed=None):
         """A cell can contain several devices WITHOUT a separator line -> split by gap."""
-        if pal in COLLAGE_PALETTES:
-            return [[ds[i] for i in g] for g in split_collage(ds)] or [ds]
+        if collage:                                   # framed (cell rect): heading boxes inside the cell, made of
+            def frame(g):                             # straight lines that reach the cell edge, are no devices
+                if not all(len(ds[i]) == 2 and (abs(ds[i][0][0]-ds[i][1][0]) < 3 or abs(ds[i][0][1]-ds[i][1][1]) < 3) for i in g):
+                    return False
+                x0, y0, x1, y1 = _bbox([ds[i] for i in g])
+                return min(abs(x0-framed[0]), abs(x1-framed[2]), abs(y0-framed[1]), abs(y1-framed[3])) <= FRAME_TOL
+            groups = [g for g in split_collage(ds) if not (framed and frame(g))]
+            return [[ds[i] for i in g] for g in groups] or [ds]
         groups = cluster_strokes(ds, CLUSTER_THR*TW)
         groups = merge_overlapping(groups, ds, MERGE_GAP*TW)
         if stroke_obj:
@@ -866,7 +929,9 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         return min(math.hypot(p[0]-x, p[1]-y) for s in ds for p in s)
     for ci in sorted(cell_info, key=lambda ci: (ci['rect'][1], ci['rect'][0])):
         if not ci['is_dev']: continue
-        devs = sorted(split_cell(ci['strokes']), key=lambda ds: (_bbox(ds)[0], _bbox(ds)[1]))   # stable order
+        framed = ci['rect'] if f"{pal.lower()}/{ci['rect'][0]/100:.0f}-{ci['rect'][1]/100:.0f}" in COLLAGE_CELLS else None
+        collage = bool(framed) or pal in COLLAGE_PALETTES
+        devs = sorted(split_cell(ci['strokes'], collage, framed), key=lambda ds: (_bbox(ds)[0], _bbox(ds)[1]))   # stable order
         bbs = [_bbox(ds) for ds in devs]
         # snap point -> exactly ONE device: the nearest (inside/<= 3 mm from the bounding box,
         # on a tie the one with the nearest stroke). Never one point in two devices.
@@ -880,9 +945,10 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         for j, ds in enumerate(devs):
             gx0, gy0, gx1, gy1 = bbs[j]
             pad = 40; ox, oy = gx0-pad, gy0-pad; W, H = gx1-gx0+2*pad, gy1-gy0+2*pad
-            mx = (gx1-gx0)*0.12
+            mx, my = (0, 0) if collage else ((gx1-gx0)*0.12, 40)   # a collage's captions lie next to the parts
             dt = [T for T in texts if text_home[T] == ci['idx'] and gx0-mx <= T[0] <= gx1+mx
-                  and gy0-40 <= T[1] <= gy1+40 and T not in label_texts]
+                  and gy0-my <= T[1] <= gy1+my and T not in label_texts
+                  and not (collage and re.fullmatch(r'[A-ZÄÖÜ][A-ZÄÖÜ.\- ]{3,}', T[2].strip()))]   # collage captions
             vol = next((T[2] for T in dt if re.search(r'\d\s*(mL|ml|Liter|L)', T[2])), '')
             ns = next((re.search(r'NS\s?\d+', T[2]).group() for T in dt if re.search(r'NS\s?\d+', T[2])), '')
             ct = [T for T in texts if text_home[T] == ci['idx']]
@@ -921,6 +987,13 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 fillable = bool(re.search(r'glas\b|schale|Schüssel', name, re.I))
             for sp in snaps:                                  # MINILAB parts use screw threads, not NS joints
                 if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
+            if dev_id in RUBBER_CONE:
+                for sp in snaps: sp.update(type='cone', dir=90, ns=None, system='RUBBER')
+            if dev_id in SUCTION_FLASKS:                  # neck on top (any size), the side arm is a hose olive
+                top = min(snaps, key=lambda sp: sp['y'])
+                top.update(type='socket', dir=270, system='NS')
+                for sp in snaps:
+                    if sp is not top and sp['type'] == 'socket': sp.update(type='hose', ns=None); sp.pop('system', None)
             hanging = pal in ('TROPFTRI', 'EXTRAKT1')
             if pal in ADD_BASE_PALETTES and not any(sp['type'] in ('base', 'support') for sp in snaps):
                 # vessels the original left without a bottom anchor (e.g. some round-bottom flasks):
