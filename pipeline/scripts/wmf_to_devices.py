@@ -292,6 +292,8 @@ SUPPORT_PALETTES = {'STATMAT1': 'flat', 'RUEHREN-1': 'flat', 'HEIZEN-1': 'bowl'}
 FILL_PALETTES = {'BECHERGL', 'DESTIL-1', 'DEWARGEF', 'EINLEIT1', 'ERLENMEY', 'EXTRAKT1', 'FLASCHEN',
                  'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'MESSZYLI', 'MISCHZYL', 'SAMMELSU', 'STANDZYL',
                  'TRENNEN1', 'TRENNEN2', 'TROPFTRI'}
+# palettes made of separate tables where the title stands only above the first one
+NAME_PREFIX = {'KRUEMM': 'Krümmer (Bogenstücke)'}
 # vessel palettes where a missing bottom anchor is added at the lowest point
 ADD_BASE_PALETTES = {'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'FLASCHEN', 'ERLENMEY', 'BECHERGL', 'TRENNEN1'}
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
@@ -701,7 +703,9 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         path = [t for _, _, t in sorted(chain)]                       # sections top -> bottom, then column headers
         # label in the device cell (large font, not a scale value) = lowest level
         gmx = (gbb[2]-gbb[0])*0.3
-        cap = [(y, x, t) for (x, y, t, h, al) in in_texts if h >= 0.6*hdr_h and not is_scale_number(t) and clean_name(t)
+        is_angle = lambda t: re.fullmatch(r'-?\d{1,3}\s*°', t.strip()) is not None   # big angle labels ("105°")
+        cap = [(y, x, t) for (x, y, t, h, al) in in_texts if (h >= 0.6*hdr_h or (is_angle(t) and h >= 0.45*hdr_h))
+               and not is_scale_number(t) and (clean_name(t) or is_angle(t))
                and x <= gbb[2]+gmx and x + len(t)*0.6*h >= gbb[0]-gmx]   # text extent overlaps THIS device
         if cap:
             cap.sort(); path.append(re.sub(r'\s+', ' ', ' '.join(t for _, _, t in cap)))
@@ -791,6 +795,9 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 if key in seen: continue
                 seen.add(key); pts.append((sx-ox, sy-oy))
             local = [[(px-ox, py-oy) for px, py in st] for st in ds]
+            prefix = NAME_PREFIX.get(pal)
+            if prefix and not name.startswith(prefix.split()[0]):
+                name = f'{prefix} {name}'; path = [prefix] + path
             cork_ring = pal == 'KOLB-MH2' and gy1-gy0 < 0.5*(gx1-gx0)   # the only flat, wide parts there
             snaps = joints.analyze(local, pts, (gx0-ox, gy0-oy, gx1-ox, gy1-oy),
                                    support='ring' if cork_ring else SUPPORT_PALETTES.get(pal))

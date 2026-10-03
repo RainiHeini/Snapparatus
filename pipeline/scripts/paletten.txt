@@ -2,7 +2,6 @@
 # drawings from C-Design (EXAMP*, ORBITAL*, IONEN, PAGODANE, TENSIDE, ...), no devices.
 ADAPTER
 BECHERGL
-DEST-0
 DESTIL-1
 DESTIL-2
 DEWARGEF

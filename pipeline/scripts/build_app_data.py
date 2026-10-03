@@ -18,7 +18,7 @@ CATEGORIES = [
     ('flasks', 'Kolben', 'Flasks', ['KOLB-1H', 'KOLB-MH1', 'KOLB-MH2']),
     ('beakers', 'Bechergläser & Erlenmeyer', 'Beakers & Erlenmeyer', ['BECHERGL', 'ERLENMEY']),
     ('condensers', 'Kühler', 'Condensers', ['KUEHLER-1', 'KUEHLER-2']),
-    ('distillation', 'Destillation & Aufsätze', 'Distillation & heads', ['DESTIL-1', 'DESTIL-2', 'DEST-0', 'VERTEIL1']),
+    ('distillation', 'Destillation & Aufsätze', 'Distillation & heads', ['DESTIL-1', 'DESTIL-2', 'VERTEIL1']),
     ('adapters', 'Adapter, Schliffe & Stopfen', 'Adapters, joints & stoppers', ['ADAPTER', 'KRUEMM', 'SCHLIFFE', 'STOPFEN']),
     ('funnels', 'Trichter & Filtration', 'Funnels & filtration', ['TRICHTER', 'TROPFTRI', 'TRENNEN1', 'TRENNEN2']),
     ('measuring', 'Messen', 'Measuring', ['MESSZYLI', 'MISCHZYL', 'STANDZYL', 'THERMOM']),

@@ -714,10 +714,15 @@
     $('catTitle').textContent = title;
     const tiles = $('tiles'); tiles.innerHTML = '';
     if (!list.length) { tiles.innerHTML = `<div class="none">${t('noResults')}</div>`; return; }
+    // words all shown names start with ("Krümmer (Bogenstücke) ...") are left off the tiles
+    let common = list.length >= 3 ? list[0].name.split(' ') : [];
+    for (const d of list) { const w = d.name.split(' '); let i = 0; while (i < common.length && w[i] === common[i]) i++; common = common.slice(0, i); }
+    while (common.length && /^[a-zäöü]/.test(common[common.length - 1])) common.pop();   // keep "mit 2 Kernen" readable
     for (const d of list.slice(0, 300)) {
       const div = document.createElement('div');
+      const label = d.name.split(' ').slice(common.length).join(' ') || d.name;
       div.className = 'tile'; div.title = d.name;
-      div.innerHTML = thumb(d) + `<span>${d.name}</span>`;
+      div.innerHTML = thumb(d) + `<span>${label}</span>`;
       div.addEventListener('pointerdown', ev => tileDown(d.id, ev));
       tiles.appendChild(div);
     }

@@ -24,8 +24,8 @@ as `app/data/devices.js` (1.3 MB, about 380 KB compressed). On the data level th
 
 - `SAMMELSU` and parts of `MINILAB` still contain collages of several parts in one SVG
   (object assignment is missing there because the parts consist almost entirely of curves).
-- `DEST-0` has no table and goes through the fallback (grouping by distance):
-  names `geraet_N`, **no anchor points**.
+- `DEST-0` is left out: it is an example sheet without a table whose parts all exist in other
+  palettes.
 - Similar variants in the same cell are named `X`, `X_1`, `X_2`.
 - No fill outline yet for Dewar vessels (double wall), cold traps and one gas washing bottle;
   a few non-vessels get one (e.g. a filter flask lid) - harmless, fills are switched on by hand.
