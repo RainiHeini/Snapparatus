@@ -753,9 +753,14 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 if key in seen: continue
                 seen.add(key); pts.append((sx-ox, sy-oy))
             local = [[(px-ox, py-oy) for px, py in st] for st in ds]
+            cork_ring = pal == 'KOLB-MH2' and gy1-gy0 < 0.5*(gx1-gx0)   # the only flat, wide parts there
             snaps = joints.analyze(local, pts, (gx0-ox, gy0-oy, gx1-ox, gy1-oy),
-                                   support='ring' if pal == 'KOLB-MH2' and gy1-gy0 < 0.5*(gx1-gx0)   # cork rings
-                                   else SUPPORT_PALETTES.get(pal))
+                                   support='ring' if cork_ring else SUPPORT_PALETTES.get(pal))
+            if cork_ring:                                 # the shared heading only names the first column
+                m = re.search(r'\d[\d,.]*\s*(mL|Liter|L)\b', name)
+                size = m.group(0) if m else ''
+                name = f'Korkring für Kolben {size}'.strip()
+                path = ['Korkringe für Kolben', size or name]
             for sp in snaps:                                  # MINILAB parts use screw threads, not NS joints
                 if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
             hanging = pal in ('TROPFTRI', 'EXTRAKT1')

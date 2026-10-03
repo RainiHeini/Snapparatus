@@ -18,13 +18,13 @@
       catalogPos: 'Katalog', propsPos: 'Eigenschaften', left: 'links', right: 'rechts', top: 'oben',
       collapse: 'Ein-/ausklappen', zoomFit: 'Alles zeigen', search: 'Gerät suchen …', all: 'Alle',
       results: 'Suchergebnisse', noResults: 'Nichts gefunden.',
-      emptyHint: 'Geräte aus dem Katalog hierher ziehen.<br>Schliffe rasten automatisch ein.',
+      emptyHint: 'Geräte aus dem Katalog hierher ziehen oder anklicken.<br>Schliffe rasten automatisch ein.', jointSize: 'Schliff',
       drawing: 'Zeichnung', parts: n => `${n} ${n === 1 ? 'Teil' : 'Teile'}`, lineWidth: 'Strichstärke',
       thin: 'Dünn', normal: 'Normal', slide: 'Folie',
-      howto: 'Teil ziehen: am passenden Schliff rastet es ein und richtet sich aus. Ein angesetztes Teil zieht man wieder ab, das Grundteil bewegt die ganze Apparatur.',
-      position: 'Lage', rotation: 'Drehung', rotateHint: 'dreht die ganze Apparatur', mirror: 'Spiegeln',
+      howto: 'Teil ziehen: am passenden Schliff rastet es ein und richtet sich aus. Ein Klick im Katalog setzt das Teil an das ausgewählte Gerät an. Eingerastete Teile bleiben zusammen – zum Trennen ein Teil auswählen und am Schliff auf das rote Symbol klicken.',
+      position: 'Lage', rotation: 'Drehung', rotateHint: 'dreht die ganze Apparatur um dieses Teil', mirror: 'Spiegeln',
       mirrorBtn: 'Horizontal', fill: 'Füllung', level: 'Füllhöhe', color: 'Farbe', joints: 'Anschlüsse',
-      duplicate: 'Duplizieren', delete: 'Löschen', detach: 'Abnehmen',
+      duplicate: 'Duplizieren', delete: 'Löschen', detach: 'Aus Apparatur lösen', unlink: 'Hier trennen',
       socket: 'Hülse', cone: 'Kern', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
       copied: 'Bild kopiert – in PowerPoint oder Word einfügen (Strg+V).',
       copyFailed: 'Kopieren nicht möglich – bitte „Export → Als PNG speichern“ verwenden.',
@@ -39,13 +39,13 @@
       catalogPos: 'Catalogue', propsPos: 'Properties', left: 'left', right: 'right', top: 'top',
       collapse: 'Collapse / expand', zoomFit: 'Show all', search: 'Search equipment …', all: 'All',
       results: 'Search results', noResults: 'Nothing found.',
-      emptyHint: 'Drag equipment from the catalogue onto the canvas.<br>Ground glass joints snap together automatically.',
+      emptyHint: 'Drag or click equipment in the catalogue.<br>Ground glass joints snap together automatically.', jointSize: 'Joint',
       drawing: 'Drawing', parts: n => `${n} ${n === 1 ? 'part' : 'parts'}`, lineWidth: 'Line width',
       thin: 'Thin', normal: 'Normal', slide: 'Slide',
-      howto: 'Drag a part: it snaps to a matching joint and aligns itself. Pull an attached part off again; the base part moves the whole setup.',
-      position: 'Position', rotation: 'Rotation', rotateHint: 'rotates the whole setup', mirror: 'Mirror',
+      howto: 'Drag a part: it snaps to a matching joint and aligns itself. Clicking in the catalogue attaches the part to the selected one. Snapped parts stay together – to separate them, select a part and click the red symbol at the joint.',
+      position: 'Position', rotation: 'Rotation', rotateHint: 'turns the whole setup about this part', mirror: 'Mirror',
       mirrorBtn: 'Horizontal', fill: 'Liquid', level: 'Fill level', color: 'Colour', joints: 'Connections',
-      duplicate: 'Duplicate', delete: 'Delete', detach: 'Detach',
+      duplicate: 'Duplicate', delete: 'Delete', detach: 'Take out of setup', unlink: 'Separate here',
       socket: 'socket', cone: 'cone', base: 'base', support: 'support', hose: 'olive',
       copied: 'Image copied – paste it into PowerPoint or Word (Ctrl+V).',
       copyFailed: 'Copying is not possible here – please use “Export → Save as PNG”.',
@@ -106,20 +106,6 @@
     }
     return seen;
   }
-  function pathTo(from, to) {                           // link sequence from part `from` to part `to`
-    const prev = new Map([[from, null]]), todo = [from];
-    while (todo.length) {
-      const c = todo.shift();
-      if (c === to) break;
-      for (const l of state.links) {
-        const o = l.p1 === c ? l.p2 : l.p2 === c ? l.p1 : null;
-        if (o != null && !prev.has(o)) { prev.set(o, { c, l }); todo.push(o); }
-      }
-    }
-    const out = []; let c = to;
-    while (prev.get(c)) { out.unshift(prev.get(c).l); c = prev.get(c).c; }
-    return out;
-  }
   function corners(p) {
     const d = dev(p);
     return [[0, 0], [d.w, 0], [d.w, d.h], [0, d.h]].map(([x, y]) => toWorld(p, x, y));
@@ -138,10 +124,10 @@
       p.x = cx + c * dx - s * dy; p.y = cy + s * dx + c * dy; p.a = norm(p.a + delta);
     }
   }
-  function mirrorSet(ids) {
-    const b = bbox(ids), cx = (b.x0 + b.x1) / 2;
+  function mirrorSet(ids, cx) {                         // about the vertical line x = cx
     for (const id of ids) { const p = part(id); p.x = 2 * cx - p.x; p.a = norm(-p.a); p.f = !p.f; }
   }
+  function centre(id) { const b = bbox([id]); return [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2]; }
 
   // ---------------------------------------------------------------- undo / autosave
   const snapshot = () => JSON.stringify(state);
@@ -237,6 +223,18 @@
       o.appendChild(el('polygon', { class: 'sel-box', points: corners(part(selected)).map(q => q.join(',')).join(' ') }));
     }
     const r = 7 / view.s;
+    if (selected && !drag) {                             // a "separate here" button on every connection of the selection
+      state.links.forEach((l, i) => {
+        if (l.p1 !== selected && l.p2 !== selected) return;
+        const w = jointWorld(part(l.p1), l.j1);
+        const g = el('g', { class: 'unlink', transform: `translate(${w.x} ${w.y}) scale(${1 / view.s})` });
+        g.dataset.link = i;
+        g.innerHTML = `<title>${t('unlink')}</title><circle r="12"/>` +           // "unlink" chain icon
+          '<g transform="translate(-8.4 -8.4) scale(0.7)"><path d="M9 17H7A5 5 0 0 1 7 7"/>' +
+          '<path d="M15 7h2a5 5 0 0 1 4 8"/><path d="M8 12h4"/><path d="m2 2 20 20"/></g>';
+        o.appendChild(g);
+      });
+    }
     for (const h of snapHints) {
       o.appendChild(el('circle', { class: 'snap-dot' + (activeSnap && h.pid === activeSnap.tp && h.j === activeSnap.tj ? ' active' : ''),
         cx: h.x, cy: h.y, r }));
@@ -272,19 +270,14 @@
     rotateSet(ids, sn.mw.x, sn.mw.y, delta);
     for (const id of ids) { const p = part(id); p.x += sn.tw.x - sn.mw.x; p.y += sn.tw.y - sn.mw.y; }
   }
-  function startDrag(ids, ev, before, detach) {
-    drag = { ids: [...ids], start: new Map(), from: toWorldPt(ev), before, moved: false, detach };
+  function startDrag(ids, ev, before) {
+    drag = { ids: [...ids], start: new Map(), from: toWorldPt(ev), before, moved: false };
     for (const id of drag.ids) { const p = part(id); drag.start.set(id, { x: p.x, y: p.y, a: p.a }); }
     canvas.classList.add('dragging');
   }
   function moveDrag(ev) {
     const [wx, wy] = toWorldPt(ev), dx = wx - drag.from[0], dy = wy - drag.from[1];
     if (!drag.moved && Math.hypot(dx, dy) * view.s < 3) return;
-    if (!drag.moved && drag.detach) {               // pulling an attached part off its setup
-      state.links = state.links.filter(l => l !== drag.detach);
-      drag.ids = [...component(drag.ids[0])];
-      for (const id of drag.ids) if (!drag.start.has(id)) { const p = part(id); drag.start.set(id, { x: p.x, y: p.y, a: p.a }); }
-    }
     if (!drag.moved) {                                  // dragged parts go on top
       drag.moved = true;
       state.parts.sort((a, b) => (drag.ids.includes(a.id) ? 1 : 0) - (drag.ids.includes(b.id) ? 1 : 0));
@@ -304,15 +297,19 @@
     commit(before); renderOverlay();
   }
 
-  // part grabbed on the canvas: the base part of a setup moves all of it, any other part is pulled off
+  // the part a setup rests on: the lowest one, as in the lab (ties: the one placed first)
+  function bearer(comp) {
+    let best = null, low = -Infinity;
+    for (const id of [...comp].sort((a, b) => a - b)) {
+      const y = Math.max(...corners(part(id)).map(q => q[1]));
+      if (y > low + 1) { low = y; best = id; }
+    }
+    return best;
+  }
+  // part grabbed on the canvas: whatever is snapped together stays together
   function grabPart(id, ev) {
-    const before = snapshot();
     selected = id; renderProps();
-    const comp = component(id), root = Math.min(...comp);
-    if (id === root) return startDrag(comp, ev, before, null);
-    const first = pathTo(id, root)[0];
-    const rest = component(id, state.links.filter(l => l !== first));
-    startDrag(rest, ev, before, first);
+    startDrag(component(id), ev, snapshot());
   }
 
   // new part from the catalogue
@@ -349,6 +346,8 @@
   let pan = null;
   canvas.addEventListener('pointerdown', ev => {
     canvas.focus();
+    const u = ev.target.closest && ev.target.closest('.unlink');
+    if (u) { unlink(state.links[+u.dataset.link]); return; }
     const g = ev.target.closest && ev.target.closest('.part');
     if (g && ev.button === 0) {
       canvas.setPointerCapture(ev.pointerId);
@@ -388,7 +387,7 @@
       const [wx, wy] = toWorldPt(ev);
       const p = addPart(pending.devId, wx, wy);
       pending.created = true;
-      startDrag([p.id], ev, pending.before, null);
+      startDrag([p.id], ev, pending.before);
       renderAll(); renderProps();
     }
     moveDrag(ev);
@@ -410,10 +409,11 @@
 
   // ---------------------------------------------------------------- actions
   function selectionSetup() { return selected ? [...component(selected)] : []; }
+  // the whole setup turns, the selected part is the pivot (it stays where it is)
   function rotateSetup(delta) {
     const ids = selectionSetup(); if (!ids.length) return;
-    const before = snapshot(), b = bbox(ids);
-    rotateSet(ids, (b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2, delta);
+    const before = snapshot(), [cx, cy] = centre(selected);
+    rotateSet(ids, cx, cy, delta);
     commit(before);
   }
   function setRotation(target) {
@@ -421,7 +421,7 @@
   }
   function mirrorSetup() {
     const ids = selectionSetup(); if (!ids.length) return;
-    const before = snapshot(); mirrorSet(ids); commit(before);
+    const before = snapshot(); mirrorSet(ids, centre(selected)[0]); commit(before);
   }
   function deleteSelected() {
     if (!selected) return;
@@ -436,11 +436,22 @@
     q.id = state.next++; q.x += 800; q.y += 400;
     state.parts.push(q); selected = q.id; commit(before);
   }
-  function detachSelected() {
+  // separate one connection; the side that does not carry the setup moves off a little along
+  // its joint, so the gap is visible
+  function unlink(link) {
+    const before = snapshot(), all = component(link.p1);
+    state.links = state.links.filter(l => l !== link);
+    const low = bearer(all);
+    const [mover, mj] = component(link.p1).has(low) ? [link.p2, link.j2] : [link.p1, link.j1];
+    const w = jointWorld(part(mover), mj), d = rad(w.dir == null ? 270 : w.dir);
+    for (const id of component(mover)) { const p = part(id); p.x -= Math.cos(d) * 500; p.y -= Math.sin(d) * 500; }
+    commit(before);
+  }
+  function detachSelected() {                           // take the selected part out of its setup
     if (!selected) return;
     const before = snapshot(), id = selected;
     state.links = state.links.filter(l => l.p1 !== id && l.p2 !== id);
-    const p = part(id); p.x += 500; commit(before);
+    const p = part(id); p.x += 800; commit(before);
   }
   function newDrawing() {
     if (state.parts.length && !confirm(t('confirmNew'))) return;
@@ -539,7 +550,8 @@
   const REP = { flasks: 'Rundkolben NS 29 250', beakers: 'normale Form 250', condensers: 'Dimroth', distillation: 'Destillationsaufsätze NS29',
     adapters: 'Reduzierstücke 29-14', funnels: 'Trichter NS 29', measuring: 'Messzylinder 100', bottles: 'Steilbrustflaschen (Enghals) 250',
     heating: 'Magnetrührer', stand: 'Stativmaterial', drying: 'Trockenrohre NS 29', misc: 'Sammelsurium' };
-  let curCat = DATA.categories[0].key, curSub = null;
+  let curCat = DATA.categories[0].key, curSub = null, curNS = null;
+  const jointSizes = d => [...new Set(d.snaps.filter(s => s.ns && s.system === 'NS').map(s => s.ns))];
   const thumb = d => `<svg viewBox="${-d.w * 0.04} ${-d.h * 0.04} ${d.w * 1.08} ${d.h * 1.08}" preserveAspectRatio="xMidYMid meet">` +
     d.svg.replace('<path ', '<path vector-effect="non-scaling-stroke" style="stroke-width:1.1px" ') + '</svg>';
   function subKey(d) {                                  // coarse group within a category, from the catalogue path
@@ -556,7 +568,7 @@
       b.className = c.key === curCat ? 'on' : ''; b.title = c[settings.lang];
       b.innerHTML = thumb(rep) + `<span>${c[settings.lang]}</span>`;
       b.onclick = () => {
-        curCat = c.key; curSub = null; $('search').value = '';
+        curCat = c.key; curSub = null; curNS = null; $('search').value = '';
         if (settings.catalogCollapsed) { settings.catalogCollapsed = false; saveSettings(); applyLayout(); }
         renderRail(); renderTiles();
       };
@@ -585,6 +597,20 @@
         if (curSub) list = list.filter(d => subKey(d) === curSub);
       }
     }
+    // joint size filter: only sizes that occur in the current list
+    const sizes = [...new Set(list.flatMap(jointSizes))].sort((a, b) => a - b), nsBox = $('nsFilter');
+    nsBox.innerHTML = '';
+    if (curNS && !sizes.includes(curNS)) curNS = null;
+    if (sizes.length > 1) {
+      nsBox.insertAdjacentHTML('beforeend', `<span>${t('jointSize')}</span>`);
+      for (const n of [null, ...sizes]) {
+        const b = document.createElement('button');
+        b.textContent = n === null ? t('all') : 'NS ' + n; b.className = n === curNS ? 'on' : '';
+        b.onclick = () => { curNS = n; renderTiles(); };
+        nsBox.appendChild(b);
+      }
+    }
+    if (curNS) list = list.filter(d => jointSizes(d).includes(curNS));
     $('catTitle').textContent = title;
     const tiles = $('tiles'); tiles.innerHTML = '';
     if (!list.length) { tiles.innerHTML = `<div class="none">${t('noResults')}</div>`; return; }
