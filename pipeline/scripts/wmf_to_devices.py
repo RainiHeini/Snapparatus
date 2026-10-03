@@ -22,6 +22,7 @@ def _u16(b, o): return struct.unpack('<H', b[o:o+2])[0]
 def _u32(b, o): return struct.unpack('<I', b[o:o+4])[0]
 
 import math
+import joints
 # all WMF records that DRAW geometry (for the completeness check)
 _DRAW = {0x0214, 0x0213, 0x0325, 0x0324, 0x0538, 0x0418, 0x0817, 0x081A,
          0x0830, 0x041B, 0x061C, 0x0521, 0x0a32}
@@ -161,8 +162,8 @@ def emit_svg(strokes, texts, ox, oy, W, H, snaps=()):
         s = s.replace('&', '&amp;').replace('<', '&lt;')
         o.append(f'<text x="{x-ox}" y="{base:.0f}" font-family="Arial" font-size="{h}" text-anchor="{anc}">{s}</text>')
     for sp in snaps:                                    # snap points (class "snap", can be shown/hidden via CSS)
-        ns = f' data-ns="{sp["ns"]}"' if sp.get('ns') else ''
-        o.append(f'<circle class="snap" cx="{sp["x"]}" cy="{sp["y"]}" r="30" fill="red"{ns}/>')
+        attrs = ''.join(f' data-{k}="{sp[k]}"' for k in ('type', 'dir', 'ns', 'system') if sp.get(k) is not None)
+        o.append(f'<circle class="snap" cx="{sp["x"]}" cy="{sp["y"]}" r="30" fill="red"{attrs}/>')
     o.append('</svg>')
     return "\n".join(o)
 
@@ -634,8 +635,7 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
     pal = os.path.splitext(os.path.basename(path))[0]
     stroke_obj = {}                                   # id(stroke) -> CDW object number
     # map snap points from the matching CDW (t=8) to WMF coordinates
-    snaps_xy = []; ns_texts = [(tx, ty, re.search(r'NS\s?\d+', s).group())
-                               for (tx, ty, s, h, al) in texts if re.search(r'NS\s?\d+', s)]
+    snaps_xy = []
     if cdw_path and os.path.exists(cdw_path):
         clines, canch, cobj = load_cdw_geometry(cdw_path)
         bx, by, fit = cdw_to_wmf(clines, pls) if clines else (0, 0, 0.0)
@@ -654,7 +654,7 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         return min(math.hypot(p[0]-x, p[1]-y) for s in ds for p in s)
     for ci in sorted(cell_info, key=lambda ci: (ci['rect'][1], ci['rect'][0])):
         if not ci['is_dev']: continue
-        devs = split_cell(ci['strokes'])
+        devs = sorted(split_cell(ci['strokes']), key=lambda ds: (_bbox(ds)[0], _bbox(ds)[1]))   # stable order
         bbs = [_bbox(ds) for ds in devs]
         # snap point -> exactly ONE device: the nearest (inside/<= 3 mm from the bounding box,
         # on a tie the one with the nearest stroke). Never one point in two devices.
@@ -682,20 +682,24 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
             name = " ".join(path).strip() or "Gerät"
             while re.search(r'\b(\S.*?)\s+\1\b', name):           # "X X" -> "X"
                 name = re.sub(r'\b(\S.*?)\s+\1\b', r'\1', name, count=1)
-            snaps = []; seen = set()
+            pts = []; seen = set()
             for (sx, sy) in owner.get(j, []):
                 key = (round((sx-ox)/40), round((sy-oy)/40))
                 if key in seen: continue
-                seen.add(key)
-                nsa = min(ns_texts, key=lambda T: (T[0]-sx)**2+(T[1]-sy)**2)[2] if ns_texts else None
-                snaps.append({'x': round(sx-ox, 1), 'y': round(sy-oy, 1), 'ns': nsa})
+                seen.add(key); pts.append((sx-ox, sy-oy))
+            local = [[(px-ox, py-oy) for px, py in st] for st in ds]
+            snaps = joints.analyze(local, pts, (gx0-ox, gy0-oy, gx1-ox, gy1-oy))
+            for sp in snaps:                                  # MINILAB parts use screw threads, not NS joints
+                if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
+            # stable ID: palette + cell position in the original (mm) + index within the cell
+            dev_id = f"{pal.lower()}/{ci['rect'][0]/100:.0f}-{ci['rect'][1]/100:.0f}" + (f"-{j}" if len(devs) > 1 else '')
             svg = emit_svg(ds, dt, ox, oy, W, H, snaps)
             safe = fn_safe(name)
             fn = f"{pal}_{safe}.svg"; k = 1
             while os.path.exists(os.path.join(outdir, fn)):
                 fn = f"{pal}_{safe}_{k}.svg"; k += 1
             open(os.path.join(outdir, fn), 'w', encoding='utf-8').write(svg)
-            manifest.append({'file': fn, 'name': name, 'path': path, 'ns': ns or None, 'snaps': snaps,
+            manifest.append({'id': dev_id, 'file': fn, 'name': name, 'path': path, 'ns': ns or None, 'snaps': snaps,
                              'cell_mm': [round(v/100, 1) for v in ci['rect']],
                              'w_mm': round(W/100, 1), 'h_mm': round(H/100, 1), 'labels': [T[2] for T in dt]})
             n += 1
@@ -747,7 +751,8 @@ def extract(path, outdir, min_geom=15, thr=90):
         while os.path.exists(os.path.join(outdir, fn)):
             fn = f"{pal}_{safe}_{k}.svg"; k += 1
         open(os.path.join(outdir, fn), 'w', encoding='utf-8').write(svg)
-        manifest.append({'file': fn, 'name': name, 'path': parts or [name], 'ns': ns or None, 'snaps': [],
+        manifest.append({'id': f"{pal.lower()}/x{(gx0+gx1)/200:.0f}-y{(gy0+gy1)/200:.0f}", 'file': fn, 'name': name,
+                         'path': parts or [name], 'ns': ns or None, 'snaps': [],
                          'cell_mm': None, 'w_mm': round(W/100, 1), 'h_mm': round(H/100, 1),
                          'labels': [T[2] for T in dt]})
         n += 1
@@ -763,6 +768,15 @@ def find_cdw(wmf_path, cdw_dir):
         p = os.path.join(cdw_dir, base + ext)
         if os.path.exists(p): return p
     return None
+
+def convert_palette(job):
+    """One palette: grid extraction, or clustering as fallback. -> number of devices."""
+    f, dst, cdw_dir = job
+    cdw = find_cdw(f, cdw_dir or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(f))), 'CDW'))
+    m = extract_grid(f, dst, cdw_path=cdw)             # grid first (frame to frame)
+    if m is None:
+        m = extract(f, dst)                             # fallback: clustering (no snaps)
+    return len(m)
 
 if __name__ == '__main__':
     import argparse
@@ -786,12 +800,12 @@ if __name__ == '__main__':
     else:   # Windows is case-insensitive: *.wmf and *.WMF return the same files -> deduplicate
         files = sorted({os.path.normcase(f): f for f in glob.glob(os.path.join(src, '*.wmf')) + glob.glob(os.path.join(src, '*.WMF'))}.values())
     if a.only: files = [f for f in files if os.path.splitext(os.path.basename(f))[0].upper() in a.only]
-    total = 0
-    for f in files:
-        cdw_dir = a.cdw or os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(f))), 'CDW')
-        cdw = find_cdw(f, cdw_dir)
-        m = extract_grid(f, dst, cdw_path=cdw)         # grid first (frame to frame)
-        if m is None:
-            m = extract(f, dst)                         # fallback: clustering (no snaps)
-        total += len(m)
+    # palettes are independent and file names carry the palette prefix -> process them in parallel,
+    # largest first so the long ones do not end up last
+    from concurrent.futures import ProcessPoolExecutor
+    os.makedirs(dst, exist_ok=True)
+    files.sort(key=lambda f: -os.path.getsize(f))
+    jobs = [(f, dst, a.cdw) for f in files]
+    with ProcessPoolExecutor(max_workers=min(len(jobs), os.cpu_count() or 1)) as pool:
+        total = sum(pool.map(convert_palette, jobs))
     print(f"\nTotal: {total} devices from {len(files)} palette(s).")

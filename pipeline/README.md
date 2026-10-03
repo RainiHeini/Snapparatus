@@ -6,16 +6,17 @@ points. The result is the device library of Snapparatus.
 
 ## Status (2026-10-03)
 
-**582 devices** from 35 palettes. On the data level this matches the original and goes
-beyond it in places:
+**582 devices** from 35 palettes, each with a stable ID, and **569 ground glass joints**
+classified by type, direction and size (335 sockets, 234 cones), plus 184 standing surfaces and
+144 hose olives. On the data level this matches the original and goes beyond it:
 
 | | Original (C-Design + LaboBib) | Now |
 |---|---|---|
 | Devices selectable individually | yes (groups) | yes, 582 SVGs |
-| Anchor points for assembling | yes, untyped | yes, untyped, at the same positions |
+| Anchor points for assembling | yes, untyped | yes, at the same positions, typed |
 | Consistent scale across devices | yes (1:5) | yes |
 | Name per device / search | no, only the palette as a picture | yes |
-| Snapping by joint type and angle | no, everything by hand | not yet |
+| Joint type, size and direction | no, everything by hand | yes (snapping itself is up to the app) |
 
 ### Known issues
 
@@ -26,10 +27,11 @@ beyond it in places:
 - Similar variants in the same cell are named `X`, `X_1`, `X_2`.
 - The SVGs consist of individual segments (one `<polyline>` per stroke), not connected
   paths. They render correctly but are unsuitable for fills and hit areas.
-- The `ns` field of an anchor point is just the nearest joint-size label in the drawing and
-  **not reliable** (bottom anchors get a joint size, too).
-- File names are not stable IDs: they are derived from the names and change whenever the
-  naming logic changes. Project files of the app need separate, fixed IDs.
+- About 260 anchors remain untyped (`point`): heating baths, thermometer scales, stand parts,
+  mirror-axis helpers - mostly not joints. Single misses exist (e.g. one NS 10 cone drawing).
+- `MINILAB` parts connect by screw threads, not standard taper joints; their joints carry
+  `"system": "MINILAB"` so the app can keep them apart.
+- File names are derived from the names and may change; use `id` to reference devices.
 
 Device names are German, as in the original library.
 
@@ -38,14 +40,15 @@ Device names are German, as in the original library.
 | Path | Contents |
 |---|---|
 | `scripts/wmf_to_devices.py` | converter WMF (+ CDW) → device SVGs + manifests |
-| `scripts/kontaktblatt.py` | visual check: all devices with names on HTML/PNG contact sheets |
+| `scripts/joints.py` | classifies anchor points (socket / cone / base / hose) by local geometry |
+| `scripts/kontaktblatt.py` | visual check: all devices with names on HTML/PNG contact sheets; `--joints` marks the joints |
 | `scripts/export_all.py` | remote-controls a running C-Design and exports every palette as WMF |
 | `scripts/paletten.txt` | the 35 actual equipment palettes (the rest are C-Design examples: molecules, orbitals …) |
 | `source/CDW/` | 57 original palettes from the C-Design installer |
 | `source/WMF/` | the same palettes, exported as WMF by C-Design itself |
 | `source/original/` | manuals (PDF, German), licence and `LABOBIB.INI` of the original |
 | `out/devices/` | *generated, not versioned:* device SVGs + one `<PALETTE>_manifest.json` per palette |
-| `out/kontaktblatt/` | *generated, not versioned:* `blatt1.png` … |
+| `out/kontaktblatt/` | *generated, not versioned:* `blatt1.png` …, with joints: `schliffe1.png` … |
 
 ## Regenerating
 
@@ -55,7 +58,10 @@ Python 3, no third-party packages.
 cd pipeline/scripts
 python wmf_to_devices.py        # source/WMF -> out/devices (palettes from paletten.txt only)
 python kontaktblatt.py          # out/devices -> out/kontaktblatt
+python kontaktblatt.py --joints # same, with joint arrows (blue socket, orange cone, green base, purple hose)
 ```
+
+Palettes are converted in parallel (one process per palette); a full run takes about 15 s.
 
 `out/devices` must be empty or absent; otherwise the script stops instead of creating
 duplicates (`_1`, `_2`). Other folders and options: `python wmf_to_devices.py --help`.
@@ -75,20 +81,37 @@ hidden via CSS).
 
 ```json
 {
-  "file": "KOLB-MH1_Mehrhalskolben_250_mL_3_Hals_Kolben_….svg",
-  "name": "Mehrhalskolben 250 mL 3-Hals-Kolben mit Mittelschliff NS 29 und 2 NS 29 senkr.",
-  "path": ["Mehrhalskolben 250 mL", "3-Hals-Kolben mit Mittelschliff NS 29 und", "2 NS 29 senkr."],
+  "id": "kuehler-1/1-25",
+  "file": "KUEHLER-1_Kuehler_NS_29_Schrauboliven_Dimroth_Kuehler.svg",
+  "name": "Kühler NS 29 (Schrauboliven) Dimroth-Kühler",
+  "path": ["Kühler NS 29 (Schrauboliven)", "Dimroth-Kühler"],
   "ns": null,
-  "snaps": [{"x": 1448.2, "y": 2727.9, "ns": "NS 29"}, …],
-  "cell_mm": [145.1, 21.1, 190.4, 69.1],
-  "w_mm": 29.0, "h_mm": 27.7,
-  "labels": ["250 mL"]
+  "snaps": [
+    {"x": 446.2, "y": 40.1,   "type": "socket", "dir": 270, "width": 654, "ns": 29, "system": "NS"},
+    {"x": 446.6, "y": 7202.8, "type": "cone",   "dir": 90,  "width": 584, "ns": 29, "system": "NS"},
+    {"x": 2042.3, "y": 1576.2, "type": "hose",  "dir": 45,  "width": 107, "ns": null}
+  ],
+  "cell_mm": [1.1, 25.1, 31.6, 113.1],
+  "w_mm": 21.2, "h_mm": 82.5,
+  "labels": ["RD14", "45°", "RD14", "45°"]
 }
 ```
 
+- `id`: stable device ID - palette, position of its cell on the original palette (mm) and,
+  if a cell holds several devices, their index from left to right. Use it in project files.
 - `path`: the name as a hierarchy (section → column header → caption), suitable for a
   catalogue tree.
-- `snaps`: anchor points in SVG coordinates (empty for `DEST-0`).
+- `ns` (device): joint size mentioned in the drawing's labels, informational only.
+- `snaps`: anchor points in SVG coordinates (empty for `DEST-0`):
+  - `type`: `socket` (female joint), `cone` (male joint), `base` (standing surface),
+    `hose` (hose olive tip) or `point` (other reference point);
+  - `dir`: outward direction in degrees, SVG convention (0 = right, 90 = down). A cone fits a
+    socket of the same `ns` and `system` when their directions are opposite; sockets sit at
+    the centre of the opening rim, cones at the centre of their wide edge, so the two points
+    coincide when assembled;
+  - `width`: drawn width of the joint edge; `ns`: standard taper size (10, 14, 19, 24, 29,
+    34, 45), always set for sockets and cones;
+  - `system`: `NS` for standard taper joints, `MINILAB` for the screw-thread micro kit.
 - `w_mm`/`h_mm`: size in drawing millimetres; `cell_mm`: position of the cell on the original
   palette (`null` for `DEST-0`).
 
@@ -102,8 +125,18 @@ hidden via CSS).
 | Symmetrical devices | additional points on the mirror axis |
 
 The original never snapped automatically: you picked an anchor on the device and one on the
-target, and C-Design moved the one exactly onto the other; rotating was up to you. Joint type
-(socket/cone/bottom) and direction can be derived from the rules above (not implemented yet).
+target, and C-Design moved the one exactly onto the other; rotating was up to you.
+`joints.py` derives type, direction and size from these rules plus the drawing: it scans
+cross-sections perpendicular to the straight edge through each anchor. A rim bead (wider than
+the rim line) marks a socket opening; a body that continues the edge and narrows to a tip
+marks a cone; a body that widens towards an opening marks a socket anchored at its inner end
+(the snap point is moved to the rim). The rim line of a socket and the wide edge of a cone
+have fixed drawn widths per joint size:
+
+| NS | 10 | 14 | 19 | 24 | 29 | 34 | 45 |
+|---|---|---|---|---|---|---|---|
+| socket rim | 216 | 332 | 440 | 538 | 653 | 805 | 981 |
+| cone edge | 200 | 290 | 376 | 465 | 584 | 700 | 900 |
 
 ## How the converter works
 
