@@ -676,6 +676,109 @@ def split_collage(ds, tol=25, res=10, min_size=150):
 
 def _area(bb): return (bb[2]-bb[0]) * (bb[3]-bb[1])
 
+def _hull(pts):
+    pts = sorted(set(pts))
+    if len(pts) < 3: return pts
+    def half(seq):
+        h = []
+        for p in seq:
+            while len(h) >= 2 and (h[-1][0]-h[-2][0])*(p[1]-h[-2][1]) - (h[-1][1]-h[-2][1])*(p[0]-h[-2][0]) <= 0: h.pop()
+            h.append(p)
+        return h[:-1]
+    return half(pts) + half(pts[::-1])
+
+
+def _taper(strokes, axis=None):
+    """A stopper seen from the side is a trapezoid; its narrow end goes into the neck.
+    -> (x, y, dir) of the point 40 % of the way from the wide to the narrow end, dir pointing to
+    the narrow end, or None. Without `axis` the outline (convex hull, cut down to four corners)
+    gives the two end faces: of the two pairs of opposite sides they are the pair that differs
+    in length (the slanted sides are equally long). With `axis` (degrees, a glass tube through
+    the stopper) the width across that axis is compared at both ends of the stopper body."""
+    pts = []
+    for st in strokes:                                    # sample the lines, vertices alone are too sparse
+        for (ax, ay), (bx, by) in zip(st, st[1:]):
+            n = max(1, int(math.hypot(bx-ax, by-ay) / 10))
+            pts += [(ax + (bx-ax)*k/n, ay + (by-ay)*k/n) for k in range(n + 1)]
+    if len(pts) < 4: return None
+    if axis is None:
+        h = _hull(pts)
+        def area(poly): return abs(sum(p[0]*q[1] - q[0]*p[1] for p, q in zip(poly, poly[1:] + poly[:1]))) / 2
+        while len(h) > 4:                                 # drop the corner that matters least
+            i = min(range(len(h)), key=lambda i: area(h) - area(h[:i] + h[i+1:]))
+            h = h[:i] + h[i+1:]
+        if len(h) < 4: return None
+        side = [(h[i], h[(i+1) % 4]) for i in range(4)]
+        L = [math.hypot(q[0]-p[0], q[1]-p[1]) for p, q in side]
+        d02, d13 = abs(L[0]-L[2]) / max(L[0], L[2]), abs(L[1]-L[3]) / max(L[1], L[3])
+        e = (0, 2) if d02 > d13 else (1, 3)
+        if max(d02, d13) < 0.05: return None
+        wide, narrow = (side[e[0]], side[e[1]]) if L[e[0]] > L[e[1]] else (side[e[1]], side[e[0]])
+        mw = ((wide[0][0]+wide[1][0])/2, (wide[0][1]+wide[1][1])/2)
+        mn = ((narrow[0][0]+narrow[1][0])/2, (narrow[0][1]+narrow[1][1])/2)
+        x, y = mw[0] + 0.4*(mn[0]-mw[0]), mw[1] + 0.4*(mn[1]-mw[1])
+        return x, y, math.degrees(math.atan2(mn[1]-mw[1], mn[0]-mw[0])) % 360
+    ux, uy = math.cos(math.radians(axis)), math.sin(math.radians(axis))
+    t = [x*ux + y*uy for x, y in pts]; sv = [-x*uy + y*ux for x, y in pts]
+    t0, t1 = min(t), max(t); nb = 30; bins = [[] for _ in range(nb)]
+    for ti, si in zip(t, sv): bins[min(nb-1, int((ti-t0) / (t1-t0+1e-9) * nb))].append(si)
+    ext = [max(b) - min(b) if b else 0 for b in bins]
+    sec = [i for i, e in enumerate(ext) if e >= 0.5 * max(ext)]   # the stopper body, not the tube
+    a, b = sec[0], sec[-1]
+    ea, eb = sum(ext[a:a+2]) / 2, sum(ext[b-1:b+1]) / 2
+    wide, narrow = (a, b) if ea > eb else (b, a)
+    k = min(max(round(wide + 0.4 * (narrow - wide)), 0), nb-1)
+    tm = t0 + (k + 0.5) * (t1 - t0) / nb
+    sm = (max(bins[k]) + min(bins[k])) / 2 if bins[k] else 0
+    return tm*ux - sm*uy, tm*uy + sm*ux, (axis if narrow > wide else axis + 180) % 360
+
+
+def collage_snaps(name, snaps, strokes, W, H):
+    """Joints of SAMMELSU parts by kind: the collage's anchors are often not where joints are.
+    Stoppers get a rubber cone, test tubes a plain neck (rubber only), syringe plungers fit into
+    their barrels (the original anchors them fully pushed in), rods have no joints."""
+    def drop(*types): return [sp for sp in snaps if sp['type'] not in types]
+    long_x = W >= H
+    def along(sp):                                        # position along the long side, 0..1
+        return sp['x'] / W if long_x else sp['y'] / H
+    if 'Gummistopfen' in name:
+        keep = [sp for sp in snaps if sp['type'] == 'hose'] if 'Glasrohr' in name else []
+        ends = sorted(keep, key=lambda sp: (sp['x'], sp['y']))
+        axis = (math.degrees(math.atan2(ends[-1]['y']-ends[0]['y'], ends[-1]['x']-ends[0]['x'])) % 180
+                if len(ends) >= 2 else None)            # a glass tube through the stopper gives its axis
+        tp = _taper(strokes, axis)
+        return keep + ([{'x': round(tp[0], 1), 'y': round(tp[1], 1), 'type': 'cone', 'dir': round(tp[2]),
+                         'width': None, 'ns': None, 'system': 'RUBBER'}] if tp else [])
+    if re.match(r'Reagenzglas\b|Zentrifugenglas', name) and 'umgedreht' not in name:
+        out = drop('cone', 'point')
+        rims = [sp for sp in out if sp['type'] == 'socket']
+        for sp in rims: sp.update(ns=None, system='NS')
+        if not rims:                                      # upright tube without a rim anchor: the top
+            xs = [x for st in strokes for x, y in st if y <= 60]
+            out.append({'x': round(sum(xs) / len(xs), 1) if xs else W / 2, 'y': 40.0, 'type': 'socket', 'dir': 270,
+                        'width': None, 'ns': None, 'system': 'NS'})
+        return out
+    if 'zylinder' in name.lower():                         # barrel: the plunger goes in from the open end
+        out = [sp for sp in snaps if sp['type'] == 'hose']
+        for sp in snaps:
+            if sp['type'] in ('point', 'socket') and 0.05 < along(sp) < 0.95:
+                d = (0 if long_x else 90) + (180 if along(sp) > 0.5 else 0)
+                out.append(dict(sp, type='socket', dir=d, ns=None, system='PLUNGER'))
+        return out
+    if name.startswith(('Spritzenkolben', 'Kolbenprober-Kolben')):   # plunger: the anchor is its tip
+        tip = max(snaps, key=lambda sp: abs(along(sp) - 0.5), default=None)
+        if not tip: return []
+        d = (0 if long_x else 90) + (0 if along(tip) > 0.5 else 180)
+        return [dict(tip, type='cone', dir=d, ns=None, system='PLUNGER')]
+    if name == 'Spritze':                                  # complete syringe: only the tip takes a tube
+        return [sp for sp in snaps if sp['type'] == 'hose']
+    if name.startswith(('Glasstab', 'Spatel', 'Kapillare', 'Pipettenhütchen', 'Pasteurpipette')):
+        return []
+    if name.startswith(('Glasrohr', 'U-Rohr', 'Gaseinleitungsrohr')):   # tube ends take hoses
+        return [sp for sp in snaps if sp['type'] == 'hose']
+    return snaps
+
+
 def split_by_object(g, ds, stroke_obj, min_strokes=4):
     """Split a spatial group with strokes of several CDW objects into devices.
     Unlabeled strokes go to the nearest labeled one. Parts that touch
@@ -1004,6 +1107,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 fillable = bool(re.search(r'glas\b|schale|Schüssel', name, re.I))
             for sp in snaps:                                  # MINILAB parts use screw threads, not NS joints
                 if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
+            if pal in COLLAGE_PALETTES:
+                snaps = collage_snaps(name, snaps, local, W, H)
             if dev_id in RUBBER_CONE:
                 for sp in snaps: sp.update(type='cone', dir=90, ns=None, system='RUBBER')
             if dev_id in RUBBER_RING and snaps:
@@ -1016,7 +1121,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 for sp in snaps:
                     if sp is not top and sp['type'] == 'socket': sp.update(type='hose', ns=None); sp.pop('system', None)
             hanging = pal in ('TROPFTRI', 'EXTRAKT1')
-            if pal in ADD_BASE_PALETTES and dev_id not in RUBBER_RING and not any(sp['type'] in ('base', 'support') for sp in snaps):
+            if pal in ADD_BASE_PALETTES and dev_id not in RUBBER_RING and (fillable or pal not in COLLAGE_PALETTES) \
+                    and not any(sp['type'] in ('base', 'support') for sp in snaps):
                 # vessels the original left without a bottom anchor (e.g. some round-bottom flasks):
                 # add one at the lowest point, so they can stand on supports and be filled - but only
                 # if the bottom is broad like a vessel's, not the tip of a tube

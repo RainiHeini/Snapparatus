@@ -59,7 +59,8 @@
       position: 'Lage', rotation: 'Drehung', rotateHint: 'dreht die ganze Apparatur um dieses Teil', mirror: 'Spiegeln',
       mirrorBtn: 'Horizontal', fill: 'Füllung', level: 'Füllhöhe', color: 'Farbe', joints: 'Anschlüsse',
       duplicate: 'Duplizieren', delete: 'Löschen', detach: 'Aus Apparatur lösen', unlink: 'Hier trennen',
-      socket: 'Hülse', cone: 'Kern', rubber: 'passt in jeden Hals', rubberSocket: 'nimmt einen Stiel auf', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
+      socket: 'Hülse', cone: 'Kern', rubber: 'passt in jeden Hals', rubberSocket: 'nimmt einen Stiel auf',
+      barrel: 'nimmt einen Kolben auf', plunger: 'passt in einen Zylinder', plainNeck: 'Öffnung ohne Schliff', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
       trash: 'Zum Entfernen hierher ziehen', trashOver: 'Loslassen zum Entfernen',
       copied: 'Bild kopiert – in PowerPoint oder Word einfügen (Strg+V).',
       copyFailed: 'Kopieren nicht möglich – bitte „Export → Als PNG speichern“ verwenden.',
@@ -119,7 +120,8 @@
       position: 'Position', rotation: 'Rotation', rotateHint: 'turns the whole setup about this part', mirror: 'Mirror',
       mirrorBtn: 'Horizontal', fill: 'Liquid', level: 'Fill level', color: 'Colour', joints: 'Connections',
       duplicate: 'Duplicate', delete: 'Delete', detach: 'Take out of setup', unlink: 'Separate here',
-      socket: 'socket', cone: 'cone', rubber: 'fits any neck', rubberSocket: 'takes a stem', base: 'base', support: 'support', hose: 'olive',
+      socket: 'socket', cone: 'cone', rubber: 'fits any neck', rubberSocket: 'takes a stem',
+      barrel: 'takes a plunger', plunger: 'fits a barrel', plainNeck: 'opening without joint', base: 'base', support: 'support', hose: 'olive',
       trash: 'Drag here to remove', trashOver: 'Release to remove',
       copied: 'Image copied – paste it into PowerPoint or Word (Ctrl+V).',
       copyFailed: 'Copying is not possible here – please use “Export → Save as PNG”.',
@@ -173,8 +175,11 @@
   const SNAPPABLE = new Set(['socket', 'cone', 'base', 'support']);
   const used = (pid, j) => state.links.some(l => (l.p1 === pid && l.j1 === j) || (l.p2 === pid && l.j2 === j));
   function compatible(a, b) {
-    if ((a.type === 'socket' && b.type === 'cone') || (a.type === 'cone' && b.type === 'socket'))   // a rubber cone fits any neck
-      return a.system === 'RUBBER' || b.system === 'RUBBER' || (a.ns === b.ns && a.system === b.system);
+    if ((a.type === 'socket' && b.type === 'cone') || (a.type === 'cone' && b.type === 'socket')) {
+      if (a.system === 'RUBBER' || b.system === 'RUBBER')                 // a rubber cone fits any neck
+        return (a.system === 'RUBBER' ? b : a).system !== 'PLUNGER';
+      return a.ns === b.ns && a.system === b.system;                     // plungers only fit barrels
+    }
     return (a.type === 'base' && b.type === 'support') || (a.type === 'support' && b.type === 'base');
   }
   function component(id, links = state.links) {
@@ -1078,6 +1083,12 @@
     }
     return `<div class="grp"><div class="t">${t('inDrawing')}</div><div class="plist">${html}</div><div class="hint" style="margin-top:8px">${t('listHint')}</div></div>`;
   }
+  function jointLabel(s) {
+    if (s.system === 'RUBBER') return t(s.type === 'socket' ? 'rubberSocket' : 'rubber');
+    if (s.system === 'PLUNGER') return t(s.type === 'socket' ? 'barrel' : 'plunger');
+    if (s.type === 'socket' && !s.ns && s.system === 'NS') return t('plainNeck');
+    return t(s.type);
+  }
   function renderProps() {
     const body = $('propsBody'), p = selected && part(selected), n = selected && note(selected);
     if (n) {
@@ -1100,7 +1111,7 @@
     } else {
       const d = dev(p), cat = DATA.categories.find(c => c.key === d.category);
       const joints = d.snaps.filter(s => SNAPPABLE.has(s.type) || s.type === 'hose')
-        .map(s => `<span>${s.system !== 'RUBBER' ? t(s.type) : s.type === 'socket' ? t('rubberSocket') : t('rubber')}${s.ns ? ' NS ' + s.ns : ''}</span>`).join('');
+        .map(s => `<span>${jointLabel(s)}${s.ns ? ' NS ' + s.ns : ''}</span>`).join('');
       $('propsTitle').textContent = d.name;
       body.innerHTML = `<div class="sub">${cat[settings.lang]}</div>
         ${joints ? `<div class="grp"><div class="t">${t('joints')}</div><div class="joints">${joints}</div></div>` : ''}
