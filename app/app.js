@@ -542,6 +542,7 @@
   let pan = null;
   canvas.addEventListener('pointerdown', ev => {
     canvas.focus();
+    if (ev.button === 0) { ev.preventDefault(); window.getSelection().removeAllRanges(); }   // dragging is no text selection
     if (tool && ev.button === 0) {                      // place a label or start an arrow
       ev.preventDefault();
       const [x, y] = toWorldPt(ev), before = snapshot(), id = state.next++;
