@@ -15,7 +15,8 @@ installation, no account.
 
 - Pick glassware and equipment from a searchable catalogue: round-bottom flasks, condensers,
   distillation heads, adapters, funnels, stands and more.
-- Snap parts together at their ground glass joints, then move, rotate and mirror them.
+- Snap parts together at their ground glass joints, then move, rotate and mirror them; loose
+  parts line up with the axes of the others by gentle alignment guides.
 - Copy and paste the drawing straight into PowerPoint or Word, or export SVG/PNG
   (transparent background, high resolution, adjustable line width).
 - Fill vessels with coloured liquid (fill level in percent, colour); pour from tilted vessels

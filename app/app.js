@@ -415,6 +415,11 @@
         o.appendChild(g);
       });
     }
+    for (const g of guides) {
+      const m = 400;                                    // a little beyond both things
+      o.appendChild(el('line', g.x != null ? { class: 'guide', x1: g.x, y1: g.a - m, x2: g.x, y2: g.b + m }
+        : { class: 'guide', x1: g.a - m, y1: g.y, x2: g.b + m, y2: g.y }));
+    }
     for (const h of snapHints) {
       o.appendChild(el('circle', { class: 'snap-dot' + (activeSnap && h.pid === activeSnap.tp && h.j === activeSnap.tj ? ' active' : ''),
         cx: h.x, cy: h.y, r }));
@@ -452,11 +457,82 @@
     rotateSet(ids, sn.mw.x, sn.mw.y, delta);
     for (const id of ids) { const p = part(id); p.x += sn.tw.x - sn.mw.x; p.y += sn.tw.y - sn.mw.y; }
   }
+  // ---------------------------------------------------------------- alignment guides
+  // While something is moved freely, it settles gently where it lines up with something else, and
+  // a thin line shows with what. Devices line up by their axis (the centre of standing surface,
+  // support and upright joints, not of the surrounding box) and by their bottom; labels by their
+  // left edge and middle, arrows by their ends. Joints always win; Alt switches the guides off.
+  // A feature: {v: position, axis: device axis?, lo, hi: extent across, for drawing the guide}
+  let guides = [];
+  const upright = d => d != null && (Math.abs(norm(d) - 90) < 3 || Math.abs(norm(d) - 270) < 3);
+  function partFeatures(p, xs, ys) {
+    const b = bbox([p.id]), size = Math.max(b.x1 - b.x0, b.y1 - b.y0); let axis = false;
+    dev(p).snaps.forEach((s, j) => {
+      if (!SNAPPABLE.has(s.type)) return;
+      const w = jointWorld(p, j);
+      if (upright(w.dir)) { xs.push({ v: w.x, axis: true, lo: b.y0, hi: b.y1, size }); axis = true; }
+      if (s.type === 'base' || s.type === 'support') ys.push({ v: w.y, axis: true, lo: b.x0, hi: b.x1, size });
+    });
+    if (!axis) xs.push({ v: (b.x0 + b.x1) / 2, lo: b.y0, hi: b.y1, size });
+    ys.push({ v: b.y1, lo: b.x0, hi: b.x1, size });
+  }
+  function noteFeatures(n, xs, ys, skipEnd = 0) {
+    if (n.type === 'arrow') {
+      for (const e of [1, 2]) if (e !== skipEnd) {
+        xs.push({ v: n['x' + e], lo: n['y' + e], hi: n['y' + e] }); ys.push({ v: n['y' + e], lo: n['x' + e], hi: n['x' + e] });
+      }
+      return;
+    }
+    const b = noteBox(n);
+    xs.push({ v: b.x0, lo: b.y0, hi: b.y1 }, { v: (b.x0 + b.x1) / 2, lo: b.y0, hi: b.y1 });
+    ys.push({ v: b.y0, lo: b.x0, hi: b.x1 }, { v: (b.y0 + b.y1) / 2, lo: b.x0, hi: b.x1 });
+  }
+  function alignTargets(skipParts, skipNotes, skipEnd = null) {
+    const xs = [], ys = [];
+    for (const p of state.parts) if (!skipParts.has(p.id)) partFeatures(p, xs, ys);
+    for (const n of state.notes) {
+      if (skipEnd && n.id === skipEnd.id) noteFeatures(n, xs, ys, skipEnd.end);   // the arrow's other end
+      else if (!skipNotes.has(n.id)) noteFeatures(n, xs, ys);
+    }
+    return { xs, ys };
+  }
+  // smallest shift that lines a moving feature up with a fixed one; device axes pull a bit further,
+  // and a big thing does not line up with a much smaller one (a flask not with its stirring bar,
+  // but the bar with the flask)
+  function bestShift(mine, theirs, tol) {
+    let best = null;
+    const big = Math.max(0, ...mine.map(m => m.size || 0));
+    for (const m of mine) for (const t of theirs) {
+      if (t.size && t.size < 0.25 * big) continue;
+      const d = t.v - m.v, lim = tol * (m.axis && t.axis ? 1.6 : 1), score = Math.abs(d) / lim;
+      if (score <= 1 && (!best || score < best.score)) best = { d, m, t, score };
+    }
+    return best;
+  }
+  function align(ev, mx, my, targets) {               // -> [shift x, shift y], sets the guides
+    guides = [];
+    if (ev.altKey || !targets) return [0, 0];
+    const tol = 7 / view.s, bx = bestShift(mx, targets.xs, tol), by = bestShift(my, targets.ys, tol);
+    const sx = bx ? bx.d : 0, sy = by ? by.d : 0;
+    if (bx) guides.push({ x: bx.t.v, a: Math.min(bx.t.lo, bx.m.lo + sy), b: Math.max(bx.t.hi, bx.m.hi + sy) });
+    if (by) guides.push({ y: by.t.v, a: Math.min(by.t.lo, by.m.lo + sx), b: Math.max(by.t.hi, by.m.hi + sx) });
+    return [sx, sy];
+  }
+
   function startDrag(ids, ev, before, notes = [], handle = null) {
     drag = { ids: [...ids], notes: [...notes], handle, start: new Map(), nstart: new Map(), from: toWorldPt(ev), before, moved: false };
     for (const id of drag.ids) { const p = part(id); drag.start.set(id, { x: p.x, y: p.y, a: p.a }); }
     for (const id of drag.notes) drag.nstart.set(id, { ...note(id) });
-    if (handle) { const n = note(handle.id); drag.hstart = [n['x' + handle.end], n['y' + handle.end]]; }
+    if (handle) {
+      const n = note(handle.id); drag.hstart = [n['x' + handle.end], n['y' + handle.end]];
+      drag.targets = alignTargets(new Set(), new Set([handle.id]), handle);
+    } else {                                            // features of what moves (at the start) and of the rest
+      const mx = [], my = [];
+      for (const id of drag.ids) partFeatures(part(id), mx, my);
+      for (const id of drag.notes) noteFeatures(note(id), mx, my);
+      drag.mine = { mx, my };
+      drag.targets = alignTargets(new Set(drag.ids), new Set(drag.notes));
+    }
     canvas.classList.add('dragging');
   }
   function moveHandle(ev, dx, dy) {                     // one end of an arrow; Shift keeps 15° steps
@@ -464,16 +540,23 @@
     let x = drag.hstart[0] + dx, y = drag.hstart[1] + dy;
     if (ev.shiftKey) {
       const L = Math.hypot(x - o[0], y - o[1]), a = Math.round(Math.atan2(y - o[1], x - o[0]) / (Math.PI / 12)) * Math.PI / 12;
-      x = o[0] + L * Math.cos(a); y = o[1] + L * Math.sin(a);
+      x = o[0] + L * Math.cos(a); y = o[1] + L * Math.sin(a); guides = [];
+    } else {
+      const [sx, sy] = align(ev, [{ v: x, lo: y, hi: y }], [{ v: y, lo: x, hi: x }], drag.targets);
+      x += sx; y += sy;
     }
     n['x' + end] = x; n['y' + end] = y;
     renderNotes(); renderOverlay();
   }
   function moveDrag(ev) {
-    const [wx, wy] = toWorldPt(ev), dx = wx - drag.from[0], dy = wy - drag.from[1];
+    const [wx, wy] = toWorldPt(ev);
+    let dx = wx - drag.from[0], dy = wy - drag.from[1];
     if (!drag.moved && Math.hypot(dx, dy) * view.s < 3) return;
     drag.moved = true;                                  // the stacking order stays as the user set it
     if (drag.handle) return moveHandle(ev, dx, dy);
+    const shift = (fs, d, e) => fs.map(f => ({ ...f, v: f.v + d, lo: f.lo + e, hi: f.hi + e }));
+    const [sx, sy] = align(ev, shift(drag.mine.mx, dx, dy), shift(drag.mine.my, dy, dx), drag.targets);
+    dx += sx; dy += sy;
     for (const id of drag.ids) { const p = part(id), s = drag.start.get(id); p.x = s.x + dx; p.y = s.y + dy; p.a = s.a; }
     for (const id of drag.notes) {
       const n = note(id), s = drag.nstart.get(id);
@@ -489,6 +572,7 @@
     }
     activeSnap = drag.overTrash || !drag.ids.length ? null : findSnap(drag.ids);
     if (drag.overTrash) snapHints = [];
+    if (activeSnap || drag.overTrash) guides = [];      // a joint beats a guide
     if (activeSnap) applySnap(drag.ids, activeSnap);
     if (drag.notes.length) renderNotes();
     renderTransforms(drag.ids);
@@ -510,7 +594,7 @@
     }
     if (activeSnap) state.links.push({ p1: activeSnap.mp, j1: activeSnap.mj, p2: activeSnap.tp, j2: activeSnap.tj });
     const before = drag.before;
-    drag = null; activeSnap = null; snapHints = [];
+    drag = null; activeSnap = null; snapHints = []; guides = [];
     canvas.classList.remove('dragging');
     commit(before); renderOverlay();
   }

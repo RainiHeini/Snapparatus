@@ -145,6 +145,7 @@ button { font: inherit; color: inherit; }
 .dragging .part, .dragging { cursor: grabbing; }
 .sel-box { fill: none; stroke: var(--select); stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; stroke-width: 1.5; pointer-events: none; }
 .hover-box { fill: rgba(15,124,140,.08); stroke: var(--select); stroke-width: 1; vector-effect: non-scaling-stroke; pointer-events: none; }
+.guide { stroke: #e0457b; stroke-width: 1; stroke-dasharray: 5 4; vector-effect: non-scaling-stroke; pointer-events: none; }
 .snap-dot { fill: #fff; stroke: var(--snap); vector-effect: non-scaling-stroke; stroke-width: 2; pointer-events: none; }
 .snap-dot.active { fill: var(--snap); }
 .note { cursor: grab; }
