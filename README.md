@@ -32,8 +32,9 @@ installation, no account.
    fillable vessels.~~ Done.
 2. ~~**Core app:** catalogue, canvas, joint-aware snapping with automatic alignment, rotation,
    liquid fills, copy/paste and export, project files.~~ Working prototype.
-3. **Teaching features:** labels and arrows, pouring from tilted vessels (stream length and
-   width), templates for standard setups (reflux, distillation, filtration …).
+3. **Teaching features:** labels and arrows, hoses between hose connections (e.g. cooling
+   water, vacuum) that follow the parts when they move, pouring from tilted vessels (stream
+   length and width), templates for standard setups (reflux, distillation, filtration …).
 4. **Later:** stand with sliding clamps, English device names.
 
 ## Repository layout
