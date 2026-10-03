@@ -1,0 +1,20 @@
+C-Design for Windows, Version 3, Freeware
+
+Ein Zeichenprogramm für chemische Formeln, Strukturen und Geräte.
+Copyright C-Design © 1988-1998 FoBasoft GmbH
+Copyright C-Design © 2010 Dr. J. Bauer, Dr. E. Fontain
+Copyright LaboBib © 1998 Dr. R. Rensch
+
+Das Programm C-Design und die Laborgerätebebliothek LaboBib 
+sind Freeware und können frei verwendet und weitergegeben 
+werden, solange für die Bereitstellung, Benutzung, oder 
+Verteilung kein Entgelt verlangt wird.
+Eine Distribution des Programms auf gegen Entgelt zugängliche 
+Medien ist nur mit Zustimmung der Autoren zulässig.
+
+Haftungsausschluss
+Es kann weder eine Garantie noch eine juristische Verantwortung 
+oder irgendeine Haftung für die Folgen, die durch eine fehlerhafte 
+Bedienung oder durch Programmfehler entstehen können, 
+übernommen werden.
+	 

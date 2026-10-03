@@ -1,0 +1,17 @@
+.*
+!.gitignore
+!.gitattributes
+!.github/
+
+_archiv/
+pipeline/out/
+
+__pycache__/
+*.py[cod]
+node_modules/
+
+Thumbs.db
+desktop.ini
+*.tmp
+*.bak
+*.log
