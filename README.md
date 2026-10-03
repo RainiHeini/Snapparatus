@@ -4,8 +4,9 @@ Free browser-based tool for drawing laboratory glassware setups for teaching. Sn
 500+ detailed apparatus parts and put the result into your lab manual, worksheet or
 PowerPoint.
 
-> **Status:** early prototype. Open `app/index.html` in Chrome, Edge or Firefox to try it -
-> no installation needed. Labels, arrows, templates and pouring are still to come.
+> **Status:** working prototype. Open `app/index.html` in Chrome, Edge or Firefox to try it -
+> no installation needed. Snapping, rotating, liquid fills, export and project files work;
+> labels, arrows, pouring and templates are still to come.
 
 ## What it will do
 
@@ -14,7 +15,9 @@ PowerPoint.
 - Snap parts together at their ground glass joints, then move, rotate and mirror them.
 - Copy and paste the drawing straight into PowerPoint or Word, or export SVG/PNG
   (transparent background, high resolution, adjustable line width).
-- Add labels and arrows; fill vessels with coloured liquid (fill level, colour, pouring).
+- Fill vessels with coloured liquid (fill level in percent, colour); pour from tilted vessels
+  with adjustable stream length and width.
+- Add labels and arrows.
 - Save your work as a project file and continue later.
 - Runs in any modern browser: online via GitHub Pages, or offline by opening `app/index.html`.
   No installation, no account, no server.
@@ -24,10 +27,10 @@ PowerPoint.
 
 1. ~~**Device data:** stable IDs, joint types and sizes, clean vector paths, inner outlines for
    fillable vessels.~~ Done.
-2. **Core app** (prototype): catalogue, canvas, joint-aware snapping with automatic alignment,
-   copy/paste and export, project files.
-3. **Teaching features:** labels and arrows, liquid fills, templates for standard setups
-   (reflux, distillation, filtration …).
+2. ~~**Core app:** catalogue, canvas, joint-aware snapping with automatic alignment, rotation,
+   liquid fills, copy/paste and export, project files.~~ Working prototype.
+3. **Teaching features:** labels and arrows, pouring from tilted vessels (stream length and
+   width), templates for standard setups (reflux, distillation, filtration …).
 4. **Later:** stand with sliding clamps, English device names.
 
 ## Repository layout
