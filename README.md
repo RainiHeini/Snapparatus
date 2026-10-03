@@ -4,9 +4,12 @@ Free browser-based tool for drawing laboratory glassware setups for teaching. Sn
 500+ detailed apparatus parts and put the result into your lab manual, worksheet or
 PowerPoint.
 
-> **Status:** working prototype. Open `app/index.html` in Chrome, Edge or Firefox to try it -
-> no installation needed. Snapping, rotating, liquid fills, export and project files work;
-> labels, arrows, pouring and templates are still to come.
+**[Open Snapparatus in your browser](https://rainiheini.github.io/Snapparatus/)** - no
+installation, no account.
+
+> **Status:** working prototype. Snapping, rotating, liquid fills, export and project files
+> work; labels, arrows, pouring and templates are still to come. To use it offline, download
+> the repository and open `app/index.html` in Chrome, Edge or Firefox.
 
 ## What it will do
 
