@@ -1139,11 +1139,9 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 top = min(snaps, key=lambda sp: sp['y'])
                 snaps = [dict(top, type='cone', dir=90, ns=None, width=None, system='RUBBER'),
                          dict(top, type='socket', dir=270, ns=None, width=None, system='RUBBER')]
-            if dev_id in SUCTION_FLASKS:                  # neck on top (any size), the side arm is a hose olive
-                top = min(snaps, key=lambda sp: sp['y'])
+            if dev_id in SUCTION_FLASKS:                  # the neck on top is a socket even where its size
+                top = min(snaps, key=lambda sp: sp['y'])  # matches no NS (1 L); the side arm is an NS 14 socket
                 top.update(type='socket', dir=270, system='NS')
-                for sp in snaps:
-                    if sp is not top and sp['type'] == 'socket': sp.update(type='hose', ns=None); sp.pop('system', None)
             hanging = pal in ('TROPFTRI', 'EXTRAKT1')
             if pal in ADD_BASE_PALETTES and dev_id not in RUBBER_RING and (fillable or pal not in COLLAGE_PALETTES) \
                     and not any(sp['type'] in ('base', 'support') for sp in snaps):
