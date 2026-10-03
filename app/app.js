@@ -137,7 +137,15 @@
     get(k, d) { try { const v = localStorage.getItem('snapparatus.' + k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
     set(k, v) { try { localStorage.setItem('snapparatus.' + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } },
   };
-  const settings = Object.assign({ lang: (navigator.language || 'de').startsWith('de') ? 'de' : 'en',
+  // first visit: the first language of the browser's preference list the app speaks, else English
+  const firstLang = () => {
+    for (const l of navigator.languages || [navigator.language || '']) {
+      const k = String(l).slice(0, 2).toLowerCase();
+      if (k === 'de' || k === 'en') return k;
+    }
+    return 'en';
+  };
+  const settings = Object.assign({ lang: firstLang(),
     swap: false, catalogCollapsed: false, propsCollapsed: false }, store.get('settings', {}));
   const saveSettings = () => store.set('settings', settings);
 
