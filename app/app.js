@@ -26,6 +26,7 @@
       mirrorBtn: 'Horizontal', fill: 'Füllung', level: 'Füllhöhe', color: 'Farbe', joints: 'Anschlüsse',
       duplicate: 'Duplizieren', delete: 'Löschen', detach: 'Aus Apparatur lösen', unlink: 'Hier trennen',
       socket: 'Hülse', cone: 'Kern', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
+      trash: 'Zum Entfernen hierher ziehen', trashOver: 'Loslassen zum Entfernen',
       copied: 'Bild kopiert – in PowerPoint oder Word einfügen (Strg+V).',
       copyFailed: 'Kopieren nicht möglich – bitte „Export → Als PNG speichern“ verwenden.',
       saved: 'Gespeichert.', openFailed: 'Datei konnte nicht geöffnet werden.', nothing: 'Die Zeichnung ist leer.',
@@ -47,6 +48,7 @@
       mirrorBtn: 'Horizontal', fill: 'Liquid', level: 'Fill level', color: 'Colour', joints: 'Connections',
       duplicate: 'Duplicate', delete: 'Delete', detach: 'Take out of setup', unlink: 'Separate here',
       socket: 'socket', cone: 'cone', base: 'base', support: 'support', hose: 'olive',
+      trash: 'Drag here to remove', trashOver: 'Release to remove',
       copied: 'Image copied – paste it into PowerPoint or Word (Ctrl+V).',
       copyFailed: 'Copying is not possible here – please use “Export → Save as PNG”.',
       saved: 'Saved.', openFailed: 'The file could not be opened.', nothing: 'The drawing is empty.',
@@ -131,8 +133,9 @@
 
   // ---------------------------------------------------------------- undo / autosave
   const snapshot = () => JSON.stringify(state);
+  const content = s => { const o = JSON.parse(s); delete o.next; return JSON.stringify(o); };   // the id counter is no change
   function commit(before) {                             // call after a change; `before` = snapshot taken before it
-    if (before === snapshot()) return;
+    if (content(before) === content(snapshot())) return;
     undoStack.push(before); if (undoStack.length > 100) undoStack.shift();
     redoStack.length = 0; changed();
   }
@@ -284,12 +287,28 @@
       renderAll();
     }
     for (const id of drag.ids) { const p = part(id), s = drag.start.get(id); p.x = s.x + dx; p.y = s.y + dy; p.a = s.a; }
-    activeSnap = findSnap(drag.ids);
+    const bin = $('trash'); bin.hidden = false;
+    const br = bin.getBoundingClientRect(), pad = 12;
+    drag.overTrash = ev.clientX >= br.left - pad && ev.clientX <= br.right + pad && ev.clientY >= br.top - pad && ev.clientY <= br.bottom + pad;
+    if (drag.overTrash !== bin.classList.contains('over')) {
+      bin.classList.toggle('over', drag.overTrash);
+      bin.querySelector('span').textContent = t(drag.overTrash ? 'trashOver' : 'trash');
+    }
+    activeSnap = drag.overTrash ? null : findSnap(drag.ids);
+    if (drag.overTrash) snapHints = [];
     if (activeSnap) applySnap(drag.ids, activeSnap);
     renderTransforms(drag.ids);
   }
   function endDrag() {
     if (!drag) return;
+    const bin = $('trash'); bin.hidden = true; bin.classList.remove('over'); bin.querySelector('span').textContent = t('trash');
+    if (drag.overTrash) {                               // dropped on the bin: remove what was dragged
+      const gone = new Set(drag.ids);
+      state.parts = state.parts.filter(p => !gone.has(p.id));
+      state.links = state.links.filter(l => !gone.has(l.p1) && !gone.has(l.p2));
+      if (gone.has(selected)) selected = null;
+      activeSnap = null;
+    }
     if (activeSnap) state.links.push({ p1: activeSnap.mp, j1: activeSnap.mj, p2: activeSnap.tp, j2: activeSnap.tj });
     const before = drag.before;
     drag = null; activeSnap = null; snapHints = [];

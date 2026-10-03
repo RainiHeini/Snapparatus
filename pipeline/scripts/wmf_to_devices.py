@@ -598,7 +598,7 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
     def split_title_to_column(ci, col):
         if len(ci['txt']) != 1: return None
         x, y, txt, h = ci['txt'][0]
-        if ',' in txt or ' ' not in txt.strip(): return None
+        if ',' in txt or '(' in txt or ' ' not in txt.strip(): return None   # "X (Y)" is one name
         CONN = {'und', 'mit', 'od.', 'oder', 'für', 'an', 'auf', '/', '-', 'u.', 'nach', 'zur', 'ohne'}
         if any(w.lower() in CONN for w in txt.split()): return None      # a phrase, not a pair of names
         cw = 0.62*h                                    # mean character width (capitals)
@@ -620,6 +620,7 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         """Header cell with several texts side by side (NS 29 | NS 19 | NS 14 without
         separator lines): pick the text above THIS device (nearest center)."""
         if len(ci['txt']) < 2: return None
+        if any(t[2].lstrip().startswith('(') for t in ci['txt']): return None   # "X (Y)" is one name
         ys = [t[1] for t in ci['txt']]; hs = [t[3] for t in ci['txt']]
         if max(ys)-min(ys) > 0.6*max(hs): return None            # multi-line -> one text
         if ci['rect'][2]-ci['rect'][0] < 1.6*(gbb[2]-gbb[0]): return None
