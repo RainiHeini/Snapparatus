@@ -1,9 +1,6 @@
 name: Deploy app to GitHub Pages
 
 on:
-  push:
-    branches: [main]
-    paths: ['app/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
