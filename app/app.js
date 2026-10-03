@@ -57,11 +57,11 @@
       thin: 'Dünn', normal: 'Normal', thick: 'Dick',
       howto: 'Teil ziehen: am passenden Schliff rastet es ein und richtet sich aus. Ein Klick im Katalog setzt das Teil an das ausgewählte Gerät an. Eingerastete Teile bleiben zusammen – zum Trennen ein Teil auswählen und am Schliff auf das rote Symbol klicken.',
       pour: 'Ausgießen', pourHint: 'Das Gefäß ist so geneigt, dass Flüssigkeit ausläuft.', pourLength: 'Länge', pourWidth: 'Breite',
-      pourEnd: 'Ende', hardEnd: 'Scharf', softEnd: 'Auslaufend', auto: 'Auto', autoTip: 'so breit wie die Flüssigkeit an der Öffnung', widthOpening: 'wie die Öffnung (sie zeigt nach unten)',
+      pourEnd: 'Ende', hardEnd: 'Scharf', softEnd: 'Auslaufend', auto: 'Auto', autoTip: 'so breit wie die Flüssigkeit an der Öffnung',
       outline: 'Kontur', outlineTip: 'Wasserlinie und Strahl mit feiner Randlinie, gut für Schwarz-Weiß-Druck',
       position: 'Lage', rotation: 'Drehung', rotateHint: 'dreht die ganze Apparatur um dieses Teil', mirror: 'Spiegeln',
       mirrorBtn: 'Horizontal', fill: 'Füllung', level: 'Füllhöhe', color: 'Farbe', joints: 'Anschlüsse',
-      duplicate: 'Duplizieren', delete: 'Löschen', detach: 'Aus Apparatur lösen', unlink: 'Hier trennen',
+      duplicate: 'Duplizieren', delete: 'Löschen', unlink: 'Hier trennen',
       socket: 'Hülse', cone: 'Kern', rubber: 'passt in jeden Hals', rubberSocket: 'nimmt einen Stiel auf',
       barrel: 'nimmt einen Kolben auf', plunger: 'passt in einen Zylinder', plainNeck: 'Öffnung ohne Schliff', base: 'Standfläche', support: 'Auflage', hose: 'Olive',
       trash: 'Zum Entfernen hierher ziehen', trashOver: 'Loslassen zum Entfernen',
@@ -121,11 +121,11 @@
       thin: 'Thin', normal: 'Normal', thick: 'Thick',
       howto: 'Drag a part: it snaps to a matching joint and aligns itself. Clicking in the catalogue attaches the part to the selected one. Snapped parts stay together – to separate them, select a part and click the red symbol at the joint.',
       pour: 'Pouring', pourHint: 'The vessel is tilted so far that liquid runs out.', pourLength: 'Length', pourWidth: 'Width',
-      pourEnd: 'End', hardEnd: 'Sharp', softEnd: 'Fading', auto: 'Auto', autoTip: 'as wide as the liquid at the opening', widthOpening: 'as the opening (it faces down)',
+      pourEnd: 'End', hardEnd: 'Sharp', softEnd: 'Fading', auto: 'Auto', autoTip: 'as wide as the liquid at the opening',
       outline: 'Outline', outlineTip: 'surface and stream with a fine edge line, good for black-and-white prints',
       position: 'Position', rotation: 'Rotation', rotateHint: 'turns the whole setup about this part', mirror: 'Mirror',
       mirrorBtn: 'Horizontal', fill: 'Liquid', level: 'Fill level', color: 'Colour', joints: 'Connections',
-      duplicate: 'Duplicate', delete: 'Delete', detach: 'Take out of setup', unlink: 'Separate here',
+      duplicate: 'Duplicate', delete: 'Delete', unlink: 'Separate here',
       socket: 'socket', cone: 'cone', rubber: 'fits any neck', rubberSocket: 'takes a stem',
       barrel: 'takes a plunger', plunger: 'fits a barrel', plainNeck: 'opening without joint', base: 'base', support: 'support', hose: 'olive',
       trash: 'Drag here to remove', trashOver: 'Release to remove',
@@ -998,12 +998,6 @@
     list.splice(k, 0, o);                               // in front of / behind list[k] (indices shift by one when removing)
     commit(before);
   }
-  function detachSelected() {                           // take the selected part out of its setup
-    if (!selected) return;
-    const before = snapshot(), id = selected;
-    state.links = state.links.filter(l => l.p1 !== id && l.p2 !== id);
-    const p = part(id); p.x += 800; commit(before);
-  }
   function newDrawing() {
     const clear = () => {
       const before = snapshot();
@@ -1280,13 +1274,12 @@
   $('search').addEventListener('input', renderTiles);
 
   // ---------------------------------------------------------------- properties panel
-  const actionsGrp = withDetach => `<div class="grp"><div class="t">${t('arrange')}</div><div class="row2" style="margin:0;flex-wrap:wrap">
+  const actionsGrp = () => `<div class="grp"><div class="t">${t('arrange')}</div><div class="row2" style="margin:0;flex-wrap:wrap">
       <button class="btn outline" data-act="toFront" title="${t('frontTip')}" ${stepTarget(true) ? '' : 'disabled'}><svg viewBox="0 0 24 24"><rect x="9" y="9" width="12" height="12" rx="2" fill="currentColor"/><path d="M15 5V4a1 1 0 0 0-1-1H4a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h1"/></svg>${t('toFront')}</button>
       <button class="btn outline" data-act="toBack" title="${t('backTip')}" ${stepTarget(false) ? '' : 'disabled'}><svg viewBox="0 0 24 24"><rect x="3" y="3" width="12" height="12" rx="2" fill="currentColor"/><path d="M19 9h1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H10a1 1 0 0 1-1-1v-1"/></svg>${t('toBack')}</button>
     </div></div>
     <div class="grp"><div class="row2" style="margin:0;flex-wrap:wrap">
       <button class="btn outline" data-act="duplicate"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M4 16V4h12"/></svg>${t('duplicate')}</button>
-      ${withDetach ? `<button class="btn outline" data-act="detach">${t('detach')}</button>` : ''}
       <button class="btn outline danger" data-act="delete"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 14h10l1-14"/></svg>${t('delete')}</button>
     </div></div>`;
   const seg = (attr, cur, opts) => `<div class="seg">${opts.map(([k, label]) =>
@@ -1324,10 +1317,9 @@
   function pourGrp(p) {                                // shown only while the tilted vessel runs out
     const f = fillShape(p); if (!f || !f.spill) return '';
     const o = Object.assign({}, POUR, p.fill.pour);
-    return `<div class="grp"><div class="t">${t('pour')} <input type="checkbox" class="toggle" id="pourOn" ${o.on ? 'checked' : ''}></div>
-      <div class="hint" style="margin-bottom:6px">${t('pourHint')}</div>
+    return `<div class="grp"><div class="t" title="${t('pourHint')}">${t('pour')} <input type="checkbox" class="toggle" id="pourOn" ${o.on ? 'checked' : ''}></div>
       <div class="row2"><label>${t('pourLength')}</label><input type="range" id="pourLen" min="400" max="8000" step="100" value="${o.length}"></div>
-      ${f.spills.every(s => s.straight) ? `<div class="row2"><label>${t('pourWidth')}</label><span class="hint">${t('widthOpening')}</span></div>`
+      ${f.spills.every(s => s.straight) ? ''               // falling from an opening that faces down: as wide as the opening
         : `<div class="row2"><label>${t('pourWidth')}</label><input type="range" id="pourWidth" min="30" max="600" step="10" value="${Math.round(o.width || f.spill.w0)}">
         <button class="btn outline small${o.width ? '' : ' on'}" data-act="pourAuto" title="${t('autoTip')}">${t('auto')}</button></div>`}
       <div class="row2"><label>${t('pourEnd')}</label>${seg('pourend', o.soft ? 'soft' : 'hard', [['hard', t('hardEnd')], ['soft', t('softEnd')]])}</div></div>`;
@@ -1341,7 +1333,7 @@
              <div class="row2" style="margin-top:10px"><button class="btn outline" data-act="editText">${t('editText')}</button></div>
              <div class="hint">${t('textHint')}</div></div>`
         : `<div class="grp"><div class="t">${t('head')}</div>${seg('head', n.head, [['end', t('headEnd')], ['both', t('headBoth')], ['none', t('headNone')]])}
-             <div class="hint" style="margin-top:10px">${t('arrowHint')}</div></div>`) + actionsGrp(false);
+             <div class="hint" style="margin-top:10px">${t('arrowHint')}</div></div>`) + actionsGrp();
       return;
     }
     if (!p) {
@@ -1359,10 +1351,9 @@
       body.innerHTML = `<div class="sub">${cat[settings.lang]}</div>
         ${joints ? `<div class="grp"><div class="t">${t('joints')}</div><div class="joints">${joints}</div></div>` : ''}
         <div class="grp"><div class="t">${t('position')}</div>
-          <div class="row2"><label>${t('rotation')}</label><input type="number" id="rotIn" step="15" value="${Math.round(norm(p.a))}">°
+          <div class="row2" title="${t('rotateHint')}"><label>${t('rotation')}</label><input type="number" id="rotIn" step="15" value="${Math.round(norm(p.a))}">°
             <button class="btn ico outline" data-act="rotL" title="-15°"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></button>
             <button class="btn ico outline" data-act="rotR" title="+15°"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></button></div>
-          <div class="hint">${t('rotateHint')}</div>
           <div class="row2"><label>${t('mirror')}</label><button class="btn outline" data-act="mirror"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M8 7 3 12l5 5V7z"/><path d="m16 7 5 5-5 5V7z"/></svg>${t('mirrorBtn')}</button></div>
         </div>
         ${d.fill && p.fill ? `<div class="grp"><div class="t">${t('fill')} <input type="checkbox" class="toggle" id="fillOn" ${p.fill.on ? 'checked' : ''}></div>
@@ -1371,7 +1362,7 @@
           <div class="row2"><label>${t('color')}</label><div class="swatches">${COLORS.map(c => `<button data-color="${c}" class="${p.fill.color === c ? 'on' : ''}" style="background:${c}"></button>`).join('')}</div></div>
         </div>` : ''}
         ${pourGrp(p)}
-        ${actionsGrp(state.links.some(l => l.p1 === p.id || l.p2 === p.id))}`;
+        ${actionsGrp()}`;
       const rotIn = $('rotIn');
       rotIn.addEventListener('change', () => setRotation(+rotIn.value || 0));
       if ($('fillOn')) {
@@ -1469,7 +1460,7 @@
     collapseCatalog: () => { settings.catalogCollapsed = !settings.catalogCollapsed; saveSettings(); applyLayout(); },
     collapseProps: () => { settings.propsCollapsed = !settings.propsCollapsed; saveSettings(); applyLayout(); },
     rotL: () => rotateSetup(-15), rotR: () => rotateSetup(15), mirror: mirrorSetup,
-    duplicate: duplicateSelected, delete: deleteSelected, detach: detachSelected,
+    duplicate: duplicateSelected, delete: deleteSelected,
     toFront: () => arrange(true), toBack: () => arrange(false),
     about: showAbout, closeAbout: hideAbout,
     text: () => setTool(tool === 'text' ? null : 'text'), arrow: () => setTool(tool === 'arrow' ? null : 'arrow'),
