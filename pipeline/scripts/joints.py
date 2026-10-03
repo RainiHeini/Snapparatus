@@ -10,7 +10,9 @@ to the straight edge through the anchor.
 
   analyze(strokes, anchors) -> [{"x", "y", "type", "dir", "width", "ns"}, ...]
 
-type: "socket" | "cone" | "base" | "hose" | "point"   (socket/cone always carry a standard size)
+type: "socket" | "cone" | "base" | "support" | "hose" | "point"
+      socket/cone always carry a standard size; support (where a vessel stands or sits) carries
+      shape "flat" or "bowl"; point = reference point without a role (ignored by the app)
 dir:  outward direction in degrees, SVG convention (0 = +x/right, 90 = +y/down)
 x, y: snap position; for sockets this is the centre of the opening rim
 """
@@ -42,7 +44,7 @@ def _angle(a, b):
     return math.atan2(b[1]-a[1], b[0]-a[0]) % math.pi
 
 
-def _edges_through(p, segs, tol=12, atol=0.05):
+def _edges_through(p, segs, tol=12, atol=0.05, min_len=80, rel=(0.3, 0.7)):
     """Straight edges (chains of collinear segments) with p near their middle, one per
     direction, longest first. -> [(width, unit vector along the edge), ...]"""
     found = {}
@@ -62,7 +64,7 @@ def _edges_through(p, segs, tol=12, atol=0.05):
                 if cl <= hi + tol and dl >= lo - tol and (cl < lo - 1 or dl > hi + 1):
                     lo, hi = min(lo, cl), max(hi, dl); grown = True
         L = hi - lo; t = proj(p)
-        if L >= 80 and 0.3 <= (t - lo) / L <= 0.7:
+        if L >= min_len and rel[0] <= (t - lo) / L <= rel[1]:
             key = round(math.degrees(th) / 3) % 60          # one edge per direction (3 degree bins)
             if key not in found or L > found[key][0]: found[key] = (L, (ux, uy))
     return sorted(found.values(), key=lambda e: -e[0])
@@ -154,12 +156,56 @@ def _classify(p, W, u, segs, at_bottom):
     return None
 
 
-def analyze(strokes, anchors, bbox=None):
+def _corridor_free(p, d, start, length, half, segs):
+    """True if no stroke comes within `half` of the ray p + t*d for start <= t <= length."""
+    t = start
+    while t <= length:
+        q = (p[0] + d[0]*t, p[1] + d[1]*t)
+        if any(_dist_pt_seg(q, *s) < half for s in segs): return False
+        t += 20
+    return True
+
+
+def _refine_point(p, segs, bbox, support):
+    """Second pass for anchors without a joint: standing surfaces, supports, olive tips.
+    -> dict of fields or None."""
+    near = [s for s in segs if _dist_pt_seg(p, *s) <= 700]
+    on_stroke = any(_dist_pt_seg(p, *s) <= 15 for s in near)
+    # olive tips whose end edge is too short or off-centre for the strict edge search
+    for W, u in _edges_through(p, near, min_len=40, rel=(0.0, 1.0)):
+        c = _classify(p, W, u, near, False)
+        if c and c['type'] == 'hose': return c
+    if not on_stroke:
+        return None
+    up_free = _corridor_free(p, (0, -1), 30, 300, 25, near)
+    down_free = _corridor_free(p, (0, 1), 30, 300, 25, near)
+    # U-shape: the stroke through the point rises on both sides (vessel bottom or bowl)
+    left = [q for s in near for q in s if -500 < q[0] - p[0] < -200 and abs(q[1] - p[1]) < 500]
+    right = [q for s in near for q in s if 200 < q[0] - p[0] < 500 and abs(q[1] - p[1]) < 500]
+    rises = lambda qs: bool(qs) and min(q[1] for q in qs) < p[1] - 30
+    horiz = any(abs(u[1]) < 0.05 for W, u in _edges_through(p, near))
+    u_shape = not horiz and rises(left) and rises(right)
+    if support == 'bowl' and up_free and u_shape:       # heating mantle: a round flask sits in it
+        return {'type': 'support', 'dir': 270, 'shape': 'bowl'}
+    if down_free and u_shape:                            # curved vessel bottom (e.g. hanging flasks)
+        return {'type': 'base', 'dir': 90}
+    if support == 'flat' and up_free and horiz and p[1] <= bbox[1] + 0.25 * (bbox[3] - bbox[1]):
+        return {'type': 'support', 'dir': 270, 'shape': 'flat'}
+    return None
+
+
+def analyze(strokes, anchors, bbox=None, support=None):
+    """support: what kind of support the device offers, if any - "flat" (lab jack, stirrer
+    plate), "bowl" (heating mantle) or "ring" (cork ring). The drawing alone cannot tell a
+    stirrer plate from a bath rim or a mantle from a flask bottom, so the caller decides."""
     segs = _segments(strokes)
     if bbox is None:
         xs = [q[0] for s in strokes for q in s]; ys = [q[1] for s in strokes for q in s]
         bbox = (min(xs), min(ys), max(xs), max(ys))
     result = []
+    if support == 'ring':                                # cork rings look like sockets in section
+        return [{'x': round(x, 1), 'y': round(y, 1), 'type': 'support', 'dir': 270, 'width': None, 'ns': None,
+                 'shape': 'ring'} for (x, y) in anchors]
     for (x, y) in anchors:
         rec = {'x': round(x, 1), 'y': round(y, 1), 'type': 'point', 'dir': None, 'width': None, 'ns': None}
         at_bottom = y >= bbox[3] - 80
@@ -172,6 +218,9 @@ def analyze(strokes, anchors, bbox=None):
             found = found or c
         if found: rec.update(found)
         elif at_bottom: rec.update(type='base', dir=90)
+        if rec['type'] == 'point' or (rec['type'] in ('socket', 'cone') and rec['ns'] is None):
+            extra = _refine_point((x, y), segs, bbox, support)
+            if extra: rec.update(extra)
         result.append(rec)
     for r in result:
         # anything at the very bottom pointing down is a standing surface, unless it is a cone

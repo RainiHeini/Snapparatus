@@ -7,8 +7,8 @@ points. The result is the device library of Snapparatus.
 ## Status (2026-10-03)
 
 **582 devices** from 35 palettes, each with a stable ID, and **569 ground glass joints**
-classified by type, direction and size (335 sockets, 234 cones), plus 184 standing surfaces and
-144 hose olives. On the data level this matches the original and goes beyond it:
+classified by type, direction and size (333 sockets, 234 cones), plus 185 standing surfaces,
+154 hose olives and 22 supports (heating mantles, cork rings, lab jacks, stirrer plates). On the data level this matches the original and goes beyond it:
 
 | | Original (C-Design + LaboBib) | Now |
 |---|---|---|
@@ -27,8 +27,10 @@ classified by type, direction and size (335 sockets, 234 cones), plus 184 standi
 - Similar variants in the same cell are named `X`, `X_1`, `X_2`.
 - The SVGs consist of individual segments (one `<polyline>` per stroke), not connected
   paths. They render correctly but are unsuitable for fills and hit areas.
-- About 260 anchors remain untyped (`point`): heating baths, thermometer scales, stand parts,
-  mirror-axis helpers - mostly not joints. Single misses exist (e.g. one NS 10 cone drawing).
+- About 230 anchors remain untyped (`point`) and are meant to be ignored by the app: reference
+  points of the original on mirror axes (thermometers, stirrer shafts, funnels), stand parts
+  (rods and clamps need a sliding attachment, planned separately), plus `MINILAB` and
+  `SAMMELSU`. Single misses exist (e.g. one NS 10 cone drawing).
 - `MINILAB` parts connect by screw threads, not standard taper joints; their joints carry
   `"system": "MINILAB"` so the app can keep them apart.
 - File names are derived from the names and may change; use `id` to reference devices.
@@ -103,8 +105,10 @@ hidden via CSS).
   catalogue tree.
 - `ns` (device): joint size mentioned in the drawing's labels, informational only.
 - `snaps`: anchor points in SVG coordinates (empty for `DEST-0`):
-  - `type`: `socket` (female joint), `cone` (male joint), `base` (standing surface),
-    `hose` (hose olive tip) or `point` (other reference point);
+  - `type`: `socket` (female joint), `cone` (male joint), `base` (standing surface of a
+    vessel), `support` (where a vessel stands or sits: `"shape"` is `flat` for lab jacks and
+    stirrer plates, `bowl` for heating mantles, `ring` for cork rings), `hose` (hose olive tip)
+    or `point` (other reference point, not meant for snapping);
   - `dir`: outward direction in degrees, SVG convention (0 = right, 90 = down). A cone fits a
     socket of the same `ns` and `system` when their directions are opposite; sockets sit at
     the centre of the opening rim, cones at the centre of their wide edge, so the two points
@@ -130,7 +134,11 @@ target, and C-Design moved the one exactly onto the other; rotating was up to yo
 cross-sections perpendicular to the straight edge through each anchor. A rim bead (wider than
 the rim line) marks a socket opening; a body that continues the edge and narrows to a tip
 marks a cone; a body that widens towards an opening marks a socket anchored at its inner end
-(the snap point is moved to the rim). The rim line of a socket and the wide edge of a cone
+(the snap point is moved to the rim). Anchors without a joint get a second look: a U-shaped
+bottom with free space below is a standing surface, the end of a narrow tube a hose olive.
+Supports are only assigned where the device kind is known to offer one (`SUPPORT_PALETTES`
+and cork rings in `wmf_to_devices.py`), because a stirrer plate and a bath rim, or a heating
+mantle and a flask bottom, look alike in the drawing. The rim line of a socket and the wide edge of a cone
 have fixed drawn widths per joint size:
 
 | NS | 10 | 14 | 19 | 24 | 29 | 34 | 45 |

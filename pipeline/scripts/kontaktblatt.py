@@ -7,7 +7,7 @@ kontaktblatt.py - Visual check ("contact sheet"): all devices with names on HTML
 Defaults: pipeline/out/devices -> pipeline/out/kontaktblatt. The PNGs are created with
 Microsoft Edge's headless mode (if available); otherwise HTML only.
 --joints draws the classified anchor points on top (sheets named schliffe1.html ...):
-blue arrow = socket, orange arrow = cone, green = base, purple = hose olive, grey = other;
+blue arrow = socket, orange arrow = cone, green = base, teal = support, purple = hose olive, grey = other;
 arrows point outwards, labels give the joint size.
 """
 import os, sys, json, glob, html, re, math, subprocess
@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 PER_SHEET, COLS = 150, 10
 EDGE = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
-COLOR = {'socket': '#1f6fd1', 'cone': '#e07b00', 'base': '#2e9e44', 'hose': '#9b3fc4', 'point': '#8a8a8a'}
+COLOR = {'socket': '#1f6fd1', 'cone': '#e07b00', 'base': '#2e9e44', 'support': '#0f9b9b', 'hose': '#9b3fc4', 'point': '#8a8a8a'}
 SHORT = {'socket': 'H', 'cone': 'K'}
 
 

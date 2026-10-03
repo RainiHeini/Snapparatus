@@ -162,7 +162,7 @@ def emit_svg(strokes, texts, ox, oy, W, H, snaps=()):
         s = s.replace('&', '&amp;').replace('<', '&lt;')
         o.append(f'<text x="{x-ox}" y="{base:.0f}" font-family="Arial" font-size="{h}" text-anchor="{anc}">{s}</text>')
     for sp in snaps:                                    # snap points (class "snap", can be shown/hidden via CSS)
-        attrs = ''.join(f' data-{k}="{sp[k]}"' for k in ('type', 'dir', 'ns', 'system') if sp.get(k) is not None)
+        attrs = ''.join(f' data-{k}="{sp[k]}"' for k in ('type', 'dir', 'ns', 'system', 'shape') if sp.get(k) is not None)
         o.append(f'<circle class="snap" cx="{sp["x"]}" cy="{sp["y"]}" r="30" fill="red"{attrs}/>')
     o.append('</svg>')
     return "\n".join(o)
@@ -229,6 +229,7 @@ def centroid(s):
 # the pieces are split further recursively. Device walls
 # (even long, straight ones) never reach the cell border -> no false cuts.
 CLUSTER_THR = 0.012       # point distance (fraction of sheet width) below which strokes are connected
+SUPPORT_PALETTES = {'STATMAT1': 'flat', 'RUEHREN-1': 'flat', 'HEIZEN-1': 'bowl'}   # lab jacks, stirrers, mantles
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
 FRAME_TOL = 60          # 0.6 mm: tolerance for "touches the edge"
 MIN_SEG = 200           # 2 mm: shorter axis-parallel pieces are never frames
@@ -688,7 +689,9 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 if key in seen: continue
                 seen.add(key); pts.append((sx-ox, sy-oy))
             local = [[(px-ox, py-oy) for px, py in st] for st in ds]
-            snaps = joints.analyze(local, pts, (gx0-ox, gy0-oy, gx1-ox, gy1-oy))
+            snaps = joints.analyze(local, pts, (gx0-ox, gy0-oy, gx1-ox, gy1-oy),
+                                   support='ring' if pal == 'KOLB-MH2' and gy1-gy0 < 0.5*(gx1-gx0)   # cork rings
+                                   else SUPPORT_PALETTES.get(pal))
             for sp in snaps:                                  # MINILAB parts use screw threads, not NS joints
                 if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
             # stable ID: palette + cell position in the original (mm) + index within the cell
