@@ -383,6 +383,13 @@ NAMES_BY_ID.update({f'minilab/{k}': [g, n] for k, (g, n) in {
     '115-12-7': ('Dosieren / Absperren', 'Combitip'),
     '115-12-8': ('Dosieren / Absperren', 'Pulvertrichter'),
     '115-12-9': ('Heizen / Temperaturmessen', 'Thermometer')}.items()})
+NAMES_BY_ID.update({f'extrakt1/{k}': ['Extraktion', n] for k, n in {
+    '1-21': 'Heißextraktor', '18-21': 'Extraktionshülse für Heißextraktor',
+    '32-21': 'Extraktionshülse für Heißextraktor, gefüllt', '47-21': 'Soxhlet-Extraktor',
+    '68-21': 'Extraktionshülse für Soxhlet-Extraktor', '83-21': 'Extraktionshülse für Soxhlet-Extraktor, gefüllt',
+    '97-21': 'Dimroth-Kühler NS 45 für Extraktoren', '123-21': 'Scheidetrichter'}.items()})
+# the Soxhlet extractor's anchor on the floor of its chamber is where the thimble stands
+INNER_SUPPORT = {'extrakt1/47-21'}
 # Büchner funnels sit in the neck of a suction flask on a rubber cone, which fits any neck; the
 # original anchors funnel stem and rubber cone at the height of the flask rim. The rubber cone
 # goes into the neck and takes the stem at that same point; a funnel also fits a neck directly.
@@ -1135,6 +1142,10 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 snaps = collage_snaps(name, snaps, local, W, H)
             if dev_id in RUBBER_CONE:
                 for sp in snaps: sp.update(type='cone', dir=90, ns=None, system='RUBBER')
+            if dev_id in INNER_SUPPORT:
+                for sp in snaps:
+                    if 0.2 * H < sp['y'] < 0.8 * H and sp['type'] in ('socket', 'cone', 'point'):
+                        sp.update(type='support', dir=270, ns=None, width=None, shape='flat'); sp.pop('system', None)
             if dev_id in RUBBER_RING and snaps:
                 top = min(snaps, key=lambda sp: sp['y'])
                 snaps = [dict(top, type='cone', dir=90, ns=None, width=None, system='RUBBER'),
