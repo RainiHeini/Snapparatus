@@ -208,3 +208,11 @@ button { font: inherit; color: inherit; }
         display: flex; flex-direction: column; align-items: center; gap: 8px; transition: border-color .1s, background .1s; }
 .drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
 .proj .note { margin-top: 10px; font-size: 12px; color: var(--mute); }
+.dialog.small:has(.tpl-grid) { width: min(760px, calc(100vw - 32px)); }
+.tpl-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 12px; }
+.tpl { border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 8px; cursor: pointer;
+       display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tpl:hover { border-color: var(--accent); box-shadow: 0 2px 10px rgba(15,124,140,.12); }
+.tpl svg { width: 100%; height: 150px; }
+.tpl span { font-size: 12.5px; font-weight: 600; text-align: center; }
+#modalBody > .note { font-size: 12.5px; color: var(--mute); margin: 4px 0 0; }

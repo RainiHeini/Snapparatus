@@ -42,8 +42,23 @@ installation, no account.
 | Path | Contents |
 |---|---|
 | `app/` | the browser app (static HTML/CSS/JS), published to GitHub Pages |
+| `app/templates/` | standard setups offered under "Templates" (see below) |
 | `pipeline/` | scripts that extract the device library from the original files ([documentation](pipeline/README.md)) |
 | `pipeline/source/` | original LaboBib/C-Design files and manuals |
+
+## Templates
+
+A template is a drawing saved from the app, as a project file (`.snapparatus.json`) or as an
+exported SVG. To add one, put the file into `app/templates/`, list it in
+`app/templates/templates.json` with its German and English name, and run
+`python pipeline/scripts/build_templates.py`, which writes `app/data/templates.js`:
+
+```json
+[{ "file": "reflux.snapparatus.json", "de": "Rückfluss", "en": "Reflux", "start": true }]
+```
+
+The template marked `start` is shown on the first visit, when the browser has no drawing saved
+yet. Inserting a template always adds it next to the current drawing.
 
 ## Credits and licences
 

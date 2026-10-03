@@ -6,6 +6,7 @@
 
   const DATA = window.SNAPPARATUS_DATA;
   const DEV = new Map(DATA.devices.map(d => [d.id, d]));
+  const TEMPLATES = window.SNAPPARATUS_TEMPLATES || [];   // [{id, de, en, start, data: project}]
   const SVGNS = 'http://www.w3.org/2000/svg';
   const $ = id => document.getElementById(id);
 
@@ -21,7 +22,8 @@
       newTitle: 'Neue Zeichnung?', newText: 'Die aktuelle Zeichnung wird verworfen.',
       replaceTitle: 'Datei öffnen?', replaceText: 'Die aktuelle Zeichnung wird durch die Datei ersetzt.',
       cancel: 'Abbrechen', saveFirst: 'Erst speichern', discard: 'Verwerfen', replace: 'Ersetzen', undo: 'Rückgängig (Strg+Z)', redo: 'Wiederholen (Strg+Y)',
-      text: 'Text', arrow: 'Pfeil', templates: 'Vorlagen', soon: 'Kommt bald', export: 'Export', copy: 'Kopieren',
+      text: 'Text', arrow: 'Pfeil', templates: 'Vorlagen', soon: 'Kommt bald', templatesTip: 'Standardaufbau einfügen',
+      templatesHint: 'Ein Klick fügt den Aufbau zusätzlich neben der bestehenden Zeichnung ein.', noTemplates: 'Noch keine Vorlagen vorhanden.', export: 'Export', copy: 'Kopieren',
       textTip: 'Beschriftung setzen: auf die Zeichenfläche klicken', arrowTip: 'Pfeil zeichnen: auf der Zeichenfläche ziehen',
       textMode: 'Auf die Zeichenfläche klicken, um eine Beschriftung zu setzen (Esc: abbrechen).',
       arrowMode: 'Auf der Zeichenfläche ziehen, um einen Pfeil zu zeichnen (Esc: abbrechen).',
@@ -75,7 +77,8 @@
       newTitle: 'New drawing?', newText: 'The current drawing will be discarded.',
       replaceTitle: 'Open file?', replaceText: 'The current drawing will be replaced by the file.',
       cancel: 'Cancel', saveFirst: 'Save first', discard: 'Discard', replace: 'Replace', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y)',
-      text: 'Text', arrow: 'Arrow', templates: 'Templates', soon: 'Coming soon', export: 'Export', copy: 'Copy',
+      text: 'Text', arrow: 'Arrow', templates: 'Templates', soon: 'Coming soon', templatesTip: 'Insert a standard setup',
+      templatesHint: 'Click a setup to add it next to the current drawing.', noTemplates: 'No templates yet.', export: 'Export', copy: 'Copy',
       textTip: 'Add a label: click on the drawing area', arrowTip: 'Draw an arrow: drag on the drawing area',
       textMode: 'Click on the drawing area to place a label (Esc: cancel).',
       arrowMode: 'Drag on the drawing area to draw an arrow (Esc: cancel).',
@@ -213,12 +216,12 @@
   }
   function centre(id) { const b = bbox([id]); return [(b.x0 + b.x1) / 2, (b.y0 + b.y1) / 2]; }
   const headSize = () => Math.max(110, (LINE[state.lineWidth] || 14) * 9);
-  function noteBox(n) {
+  function noteBox(n, dom = true) {
     if (n.type === 'arrow') {
       const h = headSize() / 2;
       return { x0: Math.min(n.x1, n.x2) - h, y0: Math.min(n.y1, n.y2) - h, x1: Math.max(n.x1, n.x2) + h, y1: Math.max(n.y1, n.y2) + h };
     }
-    const te = $('notes').querySelector(`.note[data-id="${n.id}"] text`);
+    const te = dom && $('notes').querySelector(`.note[data-id="${n.id}"] text`);
     if (te) { const b = te.getBBox(); if (b.width) return { x0: b.x, y0: b.y, x1: b.x + b.width, y1: b.y + b.height }; }
     const fs = TEXT_SIZE[n.size] || TEXT_SIZE.m, lines = n.text.split('\n');
     return { x0: n.x, y0: n.y, x1: n.x + fs * 0.55 * Math.max(1, ...lines.map(l => l.length)), y1: n.y + fs * 1.2 * lines.length };
@@ -232,12 +235,20 @@
     return b;
   }
   const isEmpty = () => !state.parts.length && !state.notes.length;
+  function sceneBox(parts, notes) {                     // box of parts and notes that are not on the canvas
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of parts) for (const [x, y] of corners(p)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    for (const n of notes) { const c = noteBox(n, false); x0 = Math.min(x0, c.x0); y0 = Math.min(y0, c.y0); x1 = Math.max(x1, c.x1); y1 = Math.max(y1, c.y1); }
+    return { x0, y0, x1, y1 };
+  }
 
   // ---------------------------------------------------------------- undo / autosave
   const snapshot = () => JSON.stringify(state);
   const content = s => { const o = JSON.parse(s); delete o.next; return JSON.stringify(o); };   // the id counter is no change
+  let pristine = false;                                 // the start template, not changed yet
   function commit(before) {                             // call after a change; `before` = snapshot taken before it
     if (content(before) === content(snapshot())) return;
+    pristine = false;
     undoStack.push(before); if (undoStack.length > 100) undoStack.shift();
     redoStack.length = 0; changed();
   }
@@ -247,6 +258,7 @@
   }
   const lineKey = k => k === 'slide' ? 'thick' : LINE[k] ? k : 'normal';   // 'slide' was the old name of 'thick'
   function restore(s) {
+    pristine = false;
     state = JSON.parse(s); state.notes = state.notes || [];
     if (selected && !part(selected) && !note(selected)) selected = null;
     changed();
@@ -344,21 +356,26 @@
   }
   // the liquid of a part lies directly below its own drawing, so a vessel in front also covers what
   // is behind it with its liquid
+  function fillShape(p) {                               // liquid of a part: outline polygons and the rectangle below the level
+    const d = dev(p);
+    if (!d.fill || !p.fill || !p.fill.on) return null;
+    // outline in world coordinates; the liquid surface stays horizontal however the vessel is turned
+    const polys = d.fill.regions.map(r => { const out = []; for (let i = 0; i < r.length; i += 2) out.push(toWorld(p, r[i], r[i + 1])); return out; });
+    const ys = polys.flat().map(q => q[1]), xs = polys.flat().map(q => q[0]);
+    const top = Math.min(...ys), bot = Math.max(...ys), lvl = bot - (p.fill.level / 100) * (bot - top);
+    return { polys: polys.map(poly => poly.map(q => q.join(',')).join(' ')), x: Math.min(...xs), y: lvl,
+      width: Math.max(...xs) - Math.min(...xs), height: bot - lvl + 1, color: p.fill.color };
+  }
   function renderFills() {
     const defs = $('defs');
     defs.innerHTML = ''; $('parts').querySelectorAll('.fill').forEach(f => f.remove());
     for (const p of state.parts) {
-      const d = dev(p);
-      if (!d.fill || !p.fill || !p.fill.on) continue;
-      // outline in world coordinates; the liquid surface stays horizontal however the vessel is turned
-      const polys = d.fill.regions.map(r => { const out = []; for (let i = 0; i < r.length; i += 2) out.push(toWorld(p, r[i], r[i + 1])); return out; });
-      const ys = polys.flat().map(q => q[1]), xs = polys.flat().map(q => q[0]);
-      const top = Math.min(...ys), bot = Math.max(...ys), lvl = bot - (p.fill.level / 100) * (bot - top);
+      const f = fillShape(p); if (!f) continue;
       const cp = el('clipPath', { id: 'clip' + p.id });
-      for (const poly of polys) cp.appendChild(el('polygon', { points: poly.map(q => q.join(',')).join(' ') }));
+      for (const pts of f.polys) cp.appendChild(el('polygon', { points: pts }));
       defs.appendChild(cp);
-      $('parts').insertBefore(el('rect', { class: 'fill', x: Math.min(...xs), y: lvl, width: Math.max(...xs) - Math.min(...xs),
-        height: bot - lvl + 1, fill: p.fill.color, 'clip-path': `url(#clip${p.id})` }), partEls.get(p.id));
+      $('parts').insertBefore(el('rect', { class: 'fill', x: f.x, y: f.y, width: f.width, height: f.height,
+        fill: f.color, 'clip-path': `url(#clip${p.id})` }), partEls.get(p.id));
     }
   }
   let snapHints = [], activeSnap = null;
@@ -756,10 +773,61 @@
       state = { parts: [], links: [], notes: [], next: 1, lineWidth: state.lineWidth }; selected = null;
       commit(before); fit();
     };
-    if (isEmpty()) return clear();
+    if (isEmpty() || pristine) return clear();
     modal(t('newTitle'), `<p>${t('newText')}</p>`, [
       { label: t('cancel') }, { label: t('saveFirst'), cls: 'outline', fn: () => { projectDialog(); return false; } },
       { label: t('discard'), cls: 'danger-fill', fn: clear }]);
+  }
+
+  // ---------------------------------------------------------------- templates
+  // a template is a saved project; it is always added next to what is already there, never replaces it
+  function insertTemplate(tpl) {
+    const data = tpl.data, before = snapshot(), ids = new Map();
+    const parts = data.parts.filter(p => DEV.has(p.dev)).map(p => {
+      const q = JSON.parse(JSON.stringify(p)); ids.set(p.id, q.id = state.next++); return q;
+    });
+    const notes = (data.notes || []).map(n => ({ ...n, id: state.next++ }));
+    const links = (data.links || []).filter(l => ids.has(l.p1) && ids.has(l.p2))
+      .map(l => ({ p1: ids.get(l.p1), j1: l.j1, p2: ids.get(l.p2), j2: l.j2 }));
+    const tb = sceneBox(parts, notes);
+    let dx, dy;
+    if (isEmpty()) {                                    // in the middle of the view
+      const r = canvas.getBoundingClientRect();
+      dx = view.x + r.width / 2 / view.s - (tb.x0 + tb.x1) / 2; dy = view.y + r.height / 2 / view.s - (tb.y0 + tb.y1) / 2;
+    } else {                                            // to the right of the drawing, standing on the same line
+      const b = drawingBox(); dx = b.x1 + 1000 - tb.x0; dy = b.y1 - tb.y1;
+    }
+    for (const p of parts) { p.x += dx; p.y += dy; }
+    for (const n of notes) {
+      if (n.type === 'text') { n.x += dx; n.y += dy; } else { n.x1 += dx; n.y1 += dy; n.x2 += dx; n.y2 += dy; }
+    }
+    state.parts.push(...parts); state.notes.push(...notes); state.links.push(...links);
+    selected = parts.length ? parts[0].id : notes.length ? notes[0].id : null;
+    commit(before); fit();
+  }
+  function previewSvg(data) {                           // small picture of a template for the dialog
+    const parts = data.parts.filter(p => DEV.has(p.dev)), notes = data.notes || [], b = sceneBox(parts, notes);
+    const m = 0.04 * Math.max(b.x1 - b.x0, b.y1 - b.y0), clipId = 'tplc' + (++previewCount) + '_';
+    let defs = '', body = '';
+    for (const p of parts) {
+      const f = fillShape(p);
+      if (f) {
+        defs += `<clipPath id="${clipId}${p.id}">${f.polys.map(pts => `<polygon points="${pts}"/>`).join('')}</clipPath>`;
+        body += `<rect x="${f.x}" y="${f.y}" width="${f.width}" height="${f.height}" fill="${f.color}" clip-path="url(#${clipId}${p.id})"/>`;
+      }
+      body += `<g transform="${transformOf(p)}">${dev(p).svg.replace('<path ', '<path vector-effect="non-scaling-stroke" style="stroke-width:1px" ')}</g>`;
+    }
+    body += notes.map(noteSvg).join('');
+    return `<svg viewBox="${b.x0 - m} ${b.y0 - m} ${b.x1 - b.x0 + 2 * m} ${b.y1 - b.y0 + 2 * m}" preserveAspectRatio="xMidYMid meet">` +
+      `<defs>${defs}</defs>${body}</svg>`;
+  }
+  let previewCount = 0;
+  function templatesDialog() {
+    if (!TEMPLATES.length) return modal(t('templates'), `<p>${t('noTemplates')}</p>`);
+    modal(t('templates'), `<p class="note">${t('templatesHint')}</p><div class="tpl-grid">` +
+      TEMPLATES.map((tp, i) => `<button class="tpl" data-tpl="${i}">${previewSvg(tp.data)}<span>${esc(tp[settings.lang] || tp.de)}</span></button>`).join('') +
+      '</div>');
+    $('modalBody').querySelectorAll('[data-tpl]').forEach(b => { b.onclick = () => { closeModal(); insertTemplate(TEMPLATES[+b.dataset.tpl]); }; });
   }
 
   // ---------------------------------------------------------------- dialogs
@@ -875,7 +943,7 @@
       if (!data || data.format !== 'snapparatus') throw new Error('format');
     } catch (e) { closeModal(); return toast(t('openFailed')); }
     const go = () => { loadProject(data); projectName = f.name.replace(/\.snapparatus\.json$|\.json$|\.svg$/i, ''); };
-    if (isEmpty()) { closeModal(); return go(); }
+    if (isEmpty() || pristine) { closeModal(); return go(); }
     modal(t('replaceTitle'), `<p>${t('replaceText')}</p>`, [{ label: t('cancel') }, { label: t('replace'), cls: 'primary', fn: go }]);
   }
   function loadProject(data) {
@@ -1137,7 +1205,7 @@
     toFront: () => arrange(true), toBack: () => arrange(false),
     about: showAbout, closeAbout: hideAbout,
     text: () => setTool(tool === 'text' ? null : 'text'), arrow: () => setTool(tool === 'arrow' ? null : 'arrow'),
-    editText: () => editText(selected), templates: () => toast(t('soon')),
+    editText: () => editText(selected), templates: templatesDialog,
   };
   document.addEventListener('click', ev => {
     const b = ev.target.closest('[data-act]');
@@ -1171,6 +1239,11 @@
     state.notes = state.notes || []; state.lineWidth = lineKey(state.lineWidth);
   }
   applyLang(); renderAll(); updateButtons(); fit();
+  const startTemplate = !saved && (TEMPLATES.find(tp => tp.start) || null);
+  if (startTemplate) {                                  // first visit: show a finished setup instead of an empty sheet
+    insertTemplate(startTemplate);
+    undoStack.length = 0; selected = null; pristine = true; renderOverlay(); renderProps(); updateButtons();
+  }
   window.addEventListener('resize', () => renderOverlay());
   window.snapparatus = { get state() { return state; }, view, fit, exportSVG };   // for tests and debugging
 })();
