@@ -369,15 +369,33 @@ def split_rect(rect, hori, vert, depth=0):
             out += split_rect(sub, hori, vert, depth+1)
     return out
 
-def leaf_cells(pls, TW, TH):
+def leaf_cells(pls, TW, TH, texts=()):
     hori, vert = frame_segments(pls)
     roots = root_frames(hori, vert, TW, TH)
     cells = []
     for r in roots: cells += split_rect(r, hori, vert)
-    # nested frames (outer frame around a table): a cell that fully contains
-    # another one is not a leaf
-    def contains(a, b): return a != b and a[0] <= b[0]+3 and a[1] <= b[1]+3 and a[2] >= b[2]-3 and a[3] >= b[3]-3
-    cells = [c for c in cells if not any(contains(c, o) for o in cells)]
+    # tables nested inside a cell: a closed frame whose top-left corner lies inside the cell
+    # (its right and bottom edges may be the cell's own). Its cells are added; the outer cell
+    # keeps what lies outside it - every stroke and text later goes to the SMALLEST cell around it.
+    T = FRAME_TOL
+    def has_h(y, a, b): return any(abs(yy-y) <= T and aa <= a+T and bb >= b-T for (yy, aa, bb) in hori)
+    def has_v(x, a, b): return any(abs(xx-x) <= T and aa <= a+T and bb >= b-T for (xx, aa, bb) in vert)
+    nested = []
+    head_h = max((t[3] for t in texts), default=0)        # heading font size of the palette
+    for c in list(cells):
+        cw, ch = c[2]-c[0], c[3]-c[1]
+        for (y, a, b) in hori:
+            if not (c[1]+T < y < c[3]-T and c[0]-T <= a < c[2]-T and b > a+0.1*cw): continue
+            for (x, va, vb) in vert:
+                if abs(x-a) > T or abs(va-y) > T or vb < y+0.1*ch: continue        # top-left corner at (a, y)
+                r = (a, y, min(b, c[2]), min(vb, c[3]))
+                if (r[2]-r[0])*(r[3]-r[1]) > 0.9*cw*ch or r in nested: continue
+                big = [t for t in texts if r[0] <= t[0] <= r[2] and r[1] <= t[1] <= r[3] and t[3] >= 0.6 * head_h]
+                inner = any(r[1]+T < yy < r[3]-T and aa <= r[0]+T and bb >= r[2]-T for (yy, aa, bb) in hori)
+                if big and inner and has_h(r[3], r[0], r[2]) and has_v(r[2], r[1], r[3]):   # heading + rule below it
+                    nested.append(r)
+    for r in nested: cells += split_rect(r, hori, vert)
+    cells = list(dict.fromkeys(cells))
     return cells, hori, vert, roots
 
 # ---------- snap points from the matching CDW file ----------
@@ -537,7 +555,7 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
     bbox, pls, texts = parse_wmf(path)
     texts = merge_char_texts(texts)
     l, t, r, b = bbox; TW, TH = r-l, b-t
-    cells, hori, vert, roots = leaf_cells(pls, TW, TH)
+    cells, hori, vert, roots = leaf_cells(pls, TW, TH, texts)
     if len(cells) < 2: return None                    # no table -> fallback (clustering)
     def inside(c, x, y, tol=0):
         return c[0]-tol <= x <= c[2]+tol and c[1]-tol <= y <= c[3]+tol
@@ -577,12 +595,21 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
              if inside(cell, (b[0]+b[2])/2, (b[1]+b[3])/2) and min(b[2], gbb[2]) - max(b[0], gbb[0]) > 0]
         return min(c)[1] if c else None
     def root_of(c): return next((r for r in roots if r[0] <= c[0]+3 and r[1] <= c[1]+3 and r[2] >= c[2]-3 and r[3] >= c[3]-3), None)
+    area = [(c[2]-c[0])*(c[3]-c[1]) for c in cells]
+    def home(x, y):                                       # smallest cell containing the point
+        inner = [i for i, c in enumerate(cells) if inside(c, x, y)]
+        return min(inner, key=lambda i: area[i]) if inner else None
+    stroke_home = [home(*centroid(s)) for s in dev]
+    text_home = {T: home(T[0], T[1]) for T in texts}
     cell_info = []
-    for c in cells:
-        st = [s for s in dev if inside(c, *centroid(s))]
-        tx = [(x, y, s, h) for (x, y, s, h, al) in texts if inside(c, x, y) and not is_scale_number(s) and clean_name(s)]
-        cell_info.append({'rect': c, 'strokes': st, 'txt': tx, 'is_dev': len(st) >= min_geom, 'root': root_of(c)})
-    hdr_cells = [ci for ci in cell_info if not ci['is_dev'] and ci['txt']]
+    for i, c in enumerate(cells):
+        st = [s for s, hm in zip(dev, stroke_home) if hm == i]
+        tx = [(x, y, s, h) for (x, y, s, h, al) in texts if text_home[(x, y, s, h, al)] == i and not is_scale_number(s) and clean_name(s)]
+        cell_info.append({'rect': c, 'idx': i, 'strokes': st, 'txt': tx, 'is_dev': len(st) >= min_geom, 'root': root_of(c)})
+    def encloses(a, b): return a != b and a[0] <= b[0]+3 and a[1] <= b[1]+3 and a[2] >= b[2]-3 and a[3] >= b[3]-3
+    for ci in cell_info: ci['outer'] = any(encloses(ci['rect'], o) for o in cells)
+    # a cell around other cells (frame around a table, cell holding a sub-table) is never a heading
+    hdr_cells = [ci for ci in cell_info if not ci['is_dev'] and ci['txt'] and not ci['outer']]
     def cell_text(ci):
         """Join the text pieces of a cell in reading order (line, then x).
         C-Design exports justified text in fragments ("REAK","TION","SGEF","AESSE"):
@@ -636,9 +663,18 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         root = root_of(dcell); rw = (root[2]-root[0]) if root else TW
         above = [ci for ci in hdr_cells if ci['rect'][3] <= dy0+FRAME_TOL and ci['root'] == root
                  and min(ci['rect'][2], dx1) - max(ci['rect'][0], dx0) >= 0.5*dw]
-        chain = []; have_wide = False; last_wide = None
+        chain = []; have_wide = False; last_wide = None; top = None
+        gap = False; have_col = False; have_sec = False
         for ci in sorted(above, key=lambda ci: -ci['rect'][3]):   # only in the own table block, nearest first
-            w = ci['rect'][2]-ci['rect'][0]; wide = w >= 0.9*rw
+            w = ci['rect'][2]-ci['rect'][0]; wide = w >= 0.9*rw; sec = w > 1.3*dw
+            if top is not None and ci['rect'][3] < top - FRAME_TOL: gap = True   # device rows lie in between
+            # across such a gap a heading only applies if the device has none of its kind yet:
+            # a column header exactly over this column, or one heading spanning several columns
+            aligned = abs(ci['rect'][0]-dx0) <= FRAME_TOL and abs(ci['rect'][2]-dx1) <= FRAME_TOL
+            if gap and not wide and not (aligned and not have_col) and not (sec and not have_sec): continue
+            top = ci['rect'][1] if top is None else min(top, ci['rect'][1])
+            if sec: have_sec = True
+            elif not wide: have_col = True
             # block-wide section titles: only the nearest counts - unless another one sits
             # directly on top of it (title + section stacked); narrow column headers always count
             if wide and have_wide and not (last_wide and abs(ci['rect'][3]-last_wide[1]) <= FRAME_TOL): continue
@@ -726,7 +762,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         # on a tie the one with the nearest stroke). Never one point in two devices.
         owner = {}
         for (sx, sy) in snaps_xy:
-            if not inside(ci['rect'], sx, sy, 300): continue
+            hm = home(sx, sy)
+            if hm != ci['idx'] and not (hm is None and inside(ci['rect'], sx, sy, 300)): continue
             cand = [(bbox_dist(bb, sx, sy), stroke_dist(ds, sx, sy), j) for j, (ds, bb) in enumerate(zip(devs, bbs))]
             cand = [c for c in cand if c[0] <= 300]
             if cand: owner.setdefault(min(cand)[2], []).append((sx, sy))
@@ -734,11 +771,11 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
             gx0, gy0, gx1, gy1 = bbs[j]
             pad = 40; ox, oy = gx0-pad, gy0-pad; W, H = gx1-gx0+2*pad, gy1-gy0+2*pad
             mx = (gx1-gx0)*0.12
-            dt = [T for T in texts if inside(ci['rect'], T[0], T[1]) and gx0-mx <= T[0] <= gx1+mx
+            dt = [T for T in texts if text_home[T] == ci['idx'] and gx0-mx <= T[0] <= gx1+mx
                   and gy0-40 <= T[1] <= gy1+40 and T not in label_texts]
             vol = next((T[2] for T in dt if re.search(r'\d\s*(mL|ml|Liter|L)', T[2])), '')
             ns = next((re.search(r'NS\s?\d+', T[2]).group() for T in dt if re.search(r'NS\s?\d+', T[2])), '')
-            ct = [T for T in texts if inside(ci['rect'], T[0], T[1])]
+            ct = [T for T in texts if text_home[T] == ci['idx']]
             lab = own_label(ci['rect'], (gx0, gy0, gx1, gy1))
             if lab:                                               # own label box instead of all cell labels
                 ct = [T for T in ct if T not in label_texts and T[3] < 0.6*hdr_h]
