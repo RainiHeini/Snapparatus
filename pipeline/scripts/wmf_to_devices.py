@@ -363,6 +363,8 @@ NAMES_BY_ID.update({f'trennen1/{k}': [g, n] for k, (g, n) in {
     '101-21-5': ('Vakuum', 'Wasserhahn mit Schlauchtülle'),
     '101-21-6': ('Vakuum', 'U-Rohr-Manometer'),
     '101-21-7': ('Vakuum', 'Woulfesche Flasche')}.items()})
+NAMES_BY_ID['einleit1/167-1'] = ['Steigrohre', 'Steigrohr zum Einsetzen in Quickfit-Adapter']
+NAMES_BY_ID['adapter/185-43'] = ['Abgangsstücke an Schliffhülse', 'Schliffhülse NS 29 mit langem Rohr']
 NAMES_BY_ID.update({f'minilab/{k}': [g, n] for k, (g, n) in {
     '32-12-0': ('Gewinderohre', 'Gewinderohr mit Seitenarm'),
     '32-12-1': ('Gewinderohre', 'Gewinderohr'),
@@ -396,7 +398,7 @@ COLLAGE_PALETTES = {'SAMMELSU'}
 COLLAGE_CELLS = {'minilab/115-12'}
 # vessel palettes where a missing bottom anchor is added at the lowest point
 ADD_BASE_PALETTES = {'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'FLASCHEN', 'ERLENMEY', 'BECHERGL', 'TRENNEN1', 'SAMMELSU'}
-SMALL_PART = 300          # 3 mm: a part with only a few strokes is kept from this size on
+SMALL_PART = 200          # 2 mm: a part with only a few strokes is kept from this size on
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
 FRAME_TOL = 60          # 0.6 mm: tolerance for "touches the edge"
 MIN_SEG = 200           # 2 mm: shorter axis-parallel pieces are never frames
@@ -425,7 +427,7 @@ def frame_segments(pls):
         return out
     return merge(H), merge(V)
 
-def root_frames(hori, vert, TW, TH):
+def root_frames(hori, vert, TW, TH, texts=()):
     """Outermost closed frames: connected components of the long lines
     whose bounding box is bounded by a line on all 4 sides."""
     minlen = 0.05*min(TW, TH)
@@ -450,7 +452,16 @@ def root_frames(hori, vert, TW, TH):
         xs = [v for s in c for v in ((s[2], s[3]) if s[0] == 'h' else (s[1],))]
         ys = [v for s in c for v in ((s[2], s[3]) if s[0] == 'v' else (s[1],))]
         x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
-        if (x1-x0) < 0.1*TW or (y1-y0) < 0.1*TH: continue
+        if (y1-y0) < 0.1*TH: continue
+        if (x1-x0) < 0.1*TW:
+            # a narrow frame is a table only with a heading: text above a full-width line near the top
+            # (ADAPTER's single "NS 29" column) or beside a full-height line (EINLEIT1's turned
+            # "Steigrohr" caption) - not a device outline (cylinder, motor housing)
+            heads = [y for (y, a, b) in hori if y0 + FRAME_TOL < y < y0 + 0.25*(y1-y0) and a <= x0+FRAME_TOL and b >= x1-FRAME_TOL]
+            sides = [x for (x, a, b) in vert if x0 + FRAME_TOL < x < x1 - FRAME_TOL and a <= y0+FRAME_TOL and b >= y1-FRAME_TOL]
+            top = any(x0 <= T[0] <= x1 and y0 <= T[1] <= hy for hy in heads for T in texts)
+            side = sides and any(x0 <= T[0] <= x1 and y0 <= T[1] <= y1 for T in texts)
+            if (x1-x0) < 0.05*TW or not (top or side): continue
         def edge(kind, pos, a, b):
             return any(s[0] == kind and abs(s[1]-pos) <= FRAME_TOL and s[2] <= a+FRAME_TOL and s[3] >= b-FRAME_TOL for s in c)
         if edge('h', y0, x0, x1) and edge('h', y1, x0, x1) and edge('v', x0, y0, y1) and edge('v', x1, y0, y1):
@@ -474,7 +485,7 @@ def split_rect(rect, hori, vert, depth=0):
 
 def leaf_cells(pls, TW, TH, texts=()):
     hori, vert = frame_segments(pls)
-    roots = root_frames(hori, vert, TW, TH)
+    roots = root_frames(hori, vert, TW, TH, texts)
     cells = []
     for r in roots: cells += split_rect(r, hori, vert)
     # tables nested inside a cell: a closed frame whose top-left corner lies inside the cell
@@ -826,6 +837,17 @@ def split_by_object(g, ds, stroke_obj, min_strokes=4):
     for i in range(n): merged.setdefault(find(i), []).extend(parts[i])
     return list(merged.values())
 
+def simple_part(st, texts=()):
+    """A cell with only a few strokes still holds a part if they form a shape of some size that is
+    not just hatching (parallel lines, like the ground-glass samples in SCHLIFFE); a plain
+    rectangle (a straight glass tube) is a part."""
+    if not st: return False
+    x0, y0, x1, y1 = _bbox(st)
+    segs = [(p, q) for s in st for p, q in zip(s, s[1:])]
+    hatching = all(abs(p[1]-q[1]) < 3 for p, q in segs) or all(abs(p[0]-q[0]) < 3 for p, q in segs)
+    boxed_text = all(abs(p[0]-q[0]) < 3 or abs(p[1]-q[1]) < 3 for p, q in segs) and         any(x0 <= T[0] <= x1 and y0 <= T[1] <= y1 for T in texts)   # a frame around a heading
+    return max(x1-x0, y1-y0) >= SMALL_PART and not hatching and not boxed_text
+
 def extract_grid(path, outdir, min_geom=10, cdw_path=None):
     bbox, pls, texts = parse_wmf(path)
     texts = merge_char_texts(texts)
@@ -880,7 +902,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
     for i, c in enumerate(cells):
         st = [s for s, hm in zip(dev, stroke_home) if hm == i]
         tx = [(x, y, s, h) for (x, y, s, h, al) in texts if text_home[(x, y, s, h, al)] == i and not is_scale_number(s) and clean_name(s)]
-        cell_info.append({'rect': c, 'idx': i, 'strokes': st, 'txt': tx, 'is_dev': len(st) >= min_geom, 'root': root_of(c)})
+        cell_info.append({'rect': c, 'idx': i, 'strokes': st, 'txt': tx, 'root': root_of(c),
+                          'is_dev': len(st) >= min_geom or simple_part(st, texts)})
     def encloses(a, b): return a != b and a[0] <= b[0]+3 and a[1] <= b[1]+3 and a[2] >= b[2]-3 and a[3] >= b[3]-3
     for ci in cell_info: ci['outer'] = any(encloses(ci['rect'], o) for o in cells)
     # a cell around other cells (frame around a table, cell holding a sub-table) is never a heading
@@ -1043,6 +1066,7 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
         else:
             print(f"  WARN snap transform unreliable (only {fit:.0%} coverage) -> no snap points")
     manifest = []; n = 0
+    emitted = set()                                   # id() of every stroke that ended up in a device
     def bbox_dist(bb, x, y):
         return math.hypot(max(bb[0]-x, 0, x-bb[2]), max(bb[1]-y, 0, y-bb[3]))
     def stroke_dist(ds, x, y):
@@ -1146,6 +1170,20 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                              'cell_mm': [round(v/100, 1) for v in ci['rect']],
                              'w_mm': round(W/100, 1), 'h_mm': round(H/100, 1), 'labels': [T[2] for T in dt]})
             n += 1
+            emitted.update(id(st) for st in ds)
+    # safety net: every object of the original drawing (CDW object number) must end up in a device;
+    # an object left out entirely or mostly was dropped somewhere (filters, frames, splitting)
+    if stroke_obj:
+        import collections
+        by_obj = collections.defaultdict(list)
+        for st in dev:
+            if stroke_obj.get(id(st)): by_obj[stroke_obj[id(st)]].append(st)
+        for ob, sts in sorted(by_obj.items()):
+            kept = sum(id(st) in emitted for st in sts)
+            if kept < 0.5 * len(sts):
+                x0, y0, x1, y1 = _bbox(sts)
+                print(f"  WARN {pal}: original object {ob} is {'missing' if not kept else 'mostly missing'} "
+                      f"({len(sts) - kept} of {len(sts)} strokes, at {x0/100:.0f},{y0/100:.0f} - {x1/100:.0f},{y1/100:.0f} mm)")
     ids = {m['id'] for m in manifest}
     if any(k.startswith(pal.lower() + '/') and k not in ids for k in NAMES_BY_ID) or (pal == 'SAMMELSU' and n != len(_SAMMELSU)):
         print(f"  WARN {pal}: the split no longer matches the hand-made names in NAMES_BY_ID - check them")

@@ -186,6 +186,12 @@ runtime) and uses the CDW files only for what the WMF lacks.
   equal length and direction "vote" for a shift. Check: at least 90 % of the CDW lines must
   then lie on WMF lines, otherwise no anchor points are written (currently 100 % in every
   palette). Every anchor belongs to exactly one device.
+- **Nothing lost:** every object of the original (CDW object number) must end up in a device.
+  The script warns about any object whose strokes are missing entirely or mostly, so parts
+  that a filter, a frame or a split dropped by mistake show up instead of disappearing silently.
+- **Hand-made corrections:** a few things cannot be read from the drawings and are set
+  explicitly in `wmf_to_devices.py`: names for parts without a heading (`NAMES_BY_ID`), the
+  collages (`COLLAGE_PALETTES`, `COLLAGE_CELLS`) and the rubber cones of the suction flasks.
 
 ### Fill outlines
 
