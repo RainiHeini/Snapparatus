@@ -47,6 +47,7 @@ Device names are German, as in the original library.
 | `scripts/joints.py` | classifies anchor points (socket / cone / base / hose) by local geometry |
 | `scripts/fill.py` | inner outline of vessels for liquid fills (needs Pillow) |
 | `scripts/build_app_data.py` | bundles the library into `app/data/devices.js` |
+| `scripts/derived.py` | parts LaboBib lacks, put together from pieces of LaboBib drawings (each names its sources); added by `build_app_data.py` |
 | `scripts/kontaktblatt.py` | visual check: all devices with names on HTML/PNG contact sheets; `--joints` marks the joints |
 | `scripts/export_all.py` | remote-controls a running C-Design and exports every palette as WMF |
 | `scripts/paletten.txt` | the 35 actual equipment palettes (the rest are C-Design examples: molecules, orbitals …) |

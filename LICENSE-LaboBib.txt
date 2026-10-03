@@ -7,6 +7,11 @@ freeware programs C-Design for Windows and the laboratory equipment library Labo
 They are NOT covered by the MIT licence in LICENSE, which applies to the source code of
 Snapparatus only.
 
+A few parts that LaboBib lacks (for example a reducer from NS 45 to NS 29) were put together for
+Snapparatus from pieces of LaboBib drawings, only moved, combined or scaled to other standard
+sizes (pipeline/scripts/derived.py, which names the drawings each one comes from). They are
+adaptations of the LaboBib drawings and fall under the same terms as these, not under MIT.
+
 Copyright LaboBib (c) 1998 Dr. Rainer Rensch
 Copyright C-Design (c) 1988-1998 FoBasoft GmbH
 Copyright C-Design (c) 2010 Dr. J. Bauer, Dr. E. Fontain

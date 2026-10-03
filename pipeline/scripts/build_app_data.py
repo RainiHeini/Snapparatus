@@ -10,8 +10,10 @@ window.SNAPPARATUS_DATA = {categories: [...], devices: [...]}.
 
 Per device: id, category, name, path (catalogue hierarchy), w/h (0.01 mm, scale 1:5),
 svg (inner SVG markup: one path plus text labels, no anchor circles), snaps, fill.
+The parts of derived.py (put together from LaboBib drawings) are added as well.
 """
 import os, sys, re, json, glob
+import derived
 
 # Catalogue categories of the app, in display order: (key, German, English, palettes)
 CATEGORIES = [
@@ -51,6 +53,10 @@ def main():
                 'snaps': [{k: v for k, v in s.items() if k != 'width' and v is not None} for s in m['snaps']],
                 'fill': m.get('fill'),
             })
+    # parts put together from LaboBib drawings (derived.py), each placed next to its relatives
+    for p in derived.parts():
+        at = next((i + 1 for i, d in enumerate(devices) if d['id'] == p['after']), len(devices))
+        devices.insert(at, {k: v for k, v in p.items() if k not in ('after', 'sources')})
     data = {'categories': [{'key': k, 'de': de, 'en': en} for k, de, en, _ in CATEGORIES], 'devices': devices}
     os.makedirs(os.path.dirname(dst), exist_ok=True)
     with open(dst, 'w', encoding='utf-8') as f:
