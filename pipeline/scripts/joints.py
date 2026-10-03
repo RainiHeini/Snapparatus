@@ -202,7 +202,12 @@ def _refine_point(p, segs, bbox, support):
     if down_free and u_shape:                            # curved vessel bottom (e.g. hanging flasks)
         return {'type': 'base', 'dir': 90}
     if support == 'flat' and up_free and horiz and p[1] <= bbox[1] + 0.25 * (bbox[3] - bbox[1]):
-        return {'type': 'support', 'dir': 270, 'shape': 'flat'}
+        # the original often anchors below the top plate (stirrer housing): sit on the topmost
+        # surface above the point instead
+        tops = [a[1] + (b[1]-a[1]) * (p[0]-a[0]) / (b[0]-a[0]) for a, b in segs
+                if b[0] != a[0] and min(a[0], b[0]) <= p[0] <= max(a[0], b[0]) and abs(b[1]-a[1]) < 0.2*abs(b[0]-a[0])]
+        y = min([t for t in tops if t <= p[1] + 15], default=p[1])
+        return {'type': 'support', 'dir': 270, 'shape': 'flat', 'y': round(y, 1)}
     return None
 
 
