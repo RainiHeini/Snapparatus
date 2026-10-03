@@ -7,8 +7,8 @@ PowerPoint.
 **[Open Snapparatus in your browser](https://rainiheini.github.io/Snapparatus/)** - no
 installation, no account.
 
-> **Status:** working prototype. Snapping, rotating, liquid fills, labels and arrows, export and
-> project files work; hoses, pouring and templates are still to come. To use it offline, download
+> **Status:** working prototype. Snapping, rotating, liquid fills, labels and arrows, templates,
+> export and project files work; hoses and pouring are still to come. To use it offline, download
 > the repository and open `app/index.html` in Chrome, Edge or Firefox.
 
 ## What it will do
@@ -33,9 +33,9 @@ installation, no account.
    fillable vessels.~~ Done.
 2. ~~**Core app:** catalogue, canvas, joint-aware snapping with automatic alignment, rotation,
    liquid fills, copy/paste and export, project files.~~ Working prototype.
-3. **Teaching features:** ~~labels and arrows~~ (done), hoses between hose connections (e.g. cooling
-   water, vacuum) that follow the parts when they move, pouring from tilted vessels (stream
-   length and width), templates for standard setups (reflux, distillation, filtration …).
+3. **Teaching features:** ~~labels and arrows, alignment guides, first templates~~ (done); more
+   templates, hoses between hose connections (e.g. cooling water, vacuum) that follow the parts
+   when they move, pouring from tilted vessels (stream length and width).
 4. **Later:** stand with sliding clamps, English device names.
 
 ## Repository layout
