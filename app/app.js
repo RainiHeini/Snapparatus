@@ -604,7 +604,8 @@
     const before = drag.before;
     drag = null; activeSnap = null; snapHints = []; guides = [];
     canvas.classList.remove('dragging');
-    commit(before); renderOverlay();
+    commit(before);                                     // no undo step if nothing changed (a new part dropped
+    renderAll(); renderProps(); updateButtons();        // on the bin), but the canvas must show it gone
   }
 
   // the part a setup rests on: the lowest one, as in the lab (ties: the one placed first)
