@@ -8,7 +8,9 @@ points. The result is the device library of Snapparatus.
 
 **582 devices** from 35 palettes, each with a stable ID, and **569 ground glass joints**
 classified by type, direction and size (333 sockets, 234 cones), plus 185 standing surfaces,
-154 hose olives and 22 supports (heating mantles, cork rings, lab jacks, stirrer plates). On the data level this matches the original and goes beyond it:
+154 hose olives and 22 supports (heating mantles, cork rings, lab jacks, stirrer plates).
+146 vessels carry an inner outline for liquid fills. The whole library is bundled for the app
+as `app/data/devices.js` (1.3 MB, about 380 KB compressed). On the data level this matches the original and goes beyond it:
 
 | | Original (C-Design + LaboBib) | Now |
 |---|---|---|
@@ -25,8 +27,8 @@ classified by type, direction and size (333 sockets, 234 cones), plus 185 standi
 - `DEST-0` has no table and goes through the fallback (grouping by distance):
   names `geraet_N`, **no anchor points**.
 - Similar variants in the same cell are named `X`, `X_1`, `X_2`.
-- The SVGs consist of individual segments (one `<polyline>` per stroke), not connected
-  paths. They render correctly but are unsuitable for fills and hit areas.
+- No fill outline yet for Dewar vessels (double wall), cold traps and one gas washing bottle;
+  a few non-vessels get one (e.g. a filter flask lid) - harmless, fills are switched on by hand.
 - About 230 anchors remain untyped (`point`) and are meant to be ignored by the app: reference
   points of the original on mirror axes (thermometers, stirrer shafts, funnels), stand parts
   (rods and clamps need a sliding attachment, planned separately), plus `MINILAB` and
@@ -43,6 +45,8 @@ Device names are German, as in the original library.
 |---|---|
 | `scripts/wmf_to_devices.py` | converter WMF (+ CDW) → device SVGs + manifests |
 | `scripts/joints.py` | classifies anchor points (socket / cone / base / hose) by local geometry |
+| `scripts/fill.py` | inner outline of vessels for liquid fills (needs Pillow) |
+| `scripts/build_app_data.py` | bundles the library into `app/data/devices.js` |
 | `scripts/kontaktblatt.py` | visual check: all devices with names on HTML/PNG contact sheets; `--joints` marks the joints |
 | `scripts/export_all.py` | remote-controls a running C-Design and exports every palette as WMF |
 | `scripts/paletten.txt` | the 35 actual equipment palettes (the rest are C-Design examples: molecules, orbitals …) |
@@ -54,16 +58,18 @@ Device names are German, as in the original library.
 
 ## Regenerating
 
-Python 3, no third-party packages.
+Python 3 with Pillow (`pip install pillow`, used for the fill outlines).
 
 ```
 cd pipeline/scripts
 python wmf_to_devices.py        # source/WMF -> out/devices (palettes from paletten.txt only)
+python build_app_data.py        # out/devices -> app/data/devices.js
 python kontaktblatt.py          # out/devices -> out/kontaktblatt
 python kontaktblatt.py --joints # same, with joint arrows (blue socket, orange cone, green base, purple hose)
 ```
 
 Palettes are converted in parallel (one process per palette); a full run takes about 15 s.
+Commit the regenerated `app/data/devices.js`; the app reads only that file.
 
 `out/devices` must be empty or absent; otherwise the script stops instead of creating
 duplicates (`_1`, `_2`). Other folders and options: `python wmf_to_devices.py --help`.
@@ -76,8 +82,9 @@ for all 57. Start C-Design first and do not touch mouse or keyboard while it run
 
 **SVG:** coordinates in 0.01 mm of *drawing size*. LaboBib draws at a **scale of 1:5**, i.e.
 100 units = 1 mm in the drawing = 5 mm in reality. All devices share this scale and fit
-together without rescaling. Anchor points are included as `<circle class="snap">` (can be
-hidden via CSS).
+together without rescaling. The drawing is a single `<path>` (strokes joined where they meet
+end to end, invisible points dropped) plus `<text>` labels. Anchor points are included as
+`<circle class="snap">` (can be hidden via CSS).
 
 **Manifest** (`<PALETTE>_manifest.json`, a list with one entry per device):
 
@@ -116,8 +123,16 @@ hidden via CSS).
   - `width`: drawn width of the joint edge; `ns`: standard taper size (10, 14, 19, 24, 29,
     34, 45), always set for sockets and cones;
   - `system`: `NS` for standard taper joints, `MINILAB` for the screw-thread micro kit.
+- `fill`: for vessels, `{"regions": [[x, y, x, y, ...], ...], "openings": [[x1, y1, x2, y2], ...]}`
+  - closed inner outlines (one per vessel body, e.g. three for a spider with flasks) and the
+  openings liquid can pour out of; `null` for everything else. Enclosed labels and scale marks
+  count as inside, so a fill clipped to the outline is never cut out around them.
 - `w_mm`/`h_mm`: size in drawing millimetres; `cell_mm`: position of the cell on the original
   palette (`null` for `DEST-0`).
+
+**App data** (`app/data/devices.js`): `window.SNAPPARATUS_DATA = {categories, devices}`;
+categories with German and English labels, devices with `id`, `category`, `name`, `path`,
+`w`, `h` (0.01 mm), `svg` (inner markup), `snaps` and `fill` as above.
 
 ### Meaning of the anchor points (LaboBib manual, p. 7, in `source/original/`)
 
@@ -169,6 +184,13 @@ runtime) and uses the CDW files only for what the WMF lacks.
   equal length and direction "vote" for a shift. Check: at least 90 % of the CDW lines must
   then lie on WMF lines, otherwise no anchor points are written (currently 100 % in every
   palette). Every anchor belongs to exactly one device.
+
+### Fill outlines
+
+`fill.py` rasterises the device (0.08 mm per pixel), closes every joint and olive and the open
+top, and flood-fills from just above each standing surface (funnels: from the middle). Feet and
+stand rings are skipped (too small or too flat), a flood that reaches the border means a gap in
+the drawing and yields no outline. Only palettes listed in `FILL_PALETTES` are considered.
 
 ## Licence of the drawings
 

@@ -22,7 +22,8 @@ PowerPoint.
 
 ## Roadmap
 
-1. **Device data:** stable IDs, clean vector paths, inner outlines for fillable vessels.
+1. ~~**Device data:** stable IDs, joint types and sizes, clean vector paths, inner outlines for
+   fillable vessels.~~ Done.
 2. **Core app:** catalogue, canvas, snapping, copy/paste and export, project files.
 3. **Teaching features:** labels and arrows, liquid fills, templates for standard setups
    (reflux, distillation, filtration …).

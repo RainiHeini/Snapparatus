@@ -23,6 +23,7 @@ def _u32(b, o): return struct.unpack('<I', b[o:o+4])[0]
 
 import math
 import joints
+import fill
 # all WMF records that DRAW geometry (for the completeness check)
 _DRAW = {0x0214, 0x0213, 0x0325, 0x0324, 0x0538, 0x0418, 0x0817, 0x081A,
          0x0830, 0x041B, 0x061C, 0x0521, 0x0a32}
@@ -149,13 +150,69 @@ def is_frame(seg, w, h):
     (x0, y0), (x1, y1) = seg
     return (abs(y1-y0) < 3 and abs(x1-x0) > 0.30*w) or (abs(x1-x0) < 3 and abs(y1-y0) > 0.22*h)
 
+def _simplify(pts, tol):
+    """Douglas-Peucker: drop points closer than tol to the line between their neighbours."""
+    if len(pts) < 3: return pts
+    keep = [False] * len(pts); keep[0] = keep[-1] = True
+    stack = [(0, len(pts) - 1)]
+    while stack:                                          # iterative, long chains would hit the recursion limit
+        a, b = stack.pop()
+        (ax, ay), (bx, by) = pts[a], pts[b]
+        dx, dy = bx-ax, by-ay; L = math.hypot(dx, dy)
+        imax, dmax = None, tol
+        for i in range(a + 1, b):
+            p = pts[i]
+            d = math.hypot(p[0]-ax, p[1]-ay) if L == 0 else abs(dy*(p[0]-ax) - dx*(p[1]-ay)) / L
+            if d > dmax: imax, dmax = i, d
+        if imax is not None:
+            keep[imax] = True; stack += [(a, imax), (imax, b)]
+    return [p for p, k in zip(pts, keep) if k]
+
+def merge_strokes(strokes, snap=0.6, tol=1.5):
+    """Join strokes that meet end to end at a point no other stroke touches (so junctions stay
+    separate), then drop points without visible effect. Round caps and joins make the result
+    look identical to the input."""
+    key = lambda p: (round(p[0]/snap), round(p[1]/snap))
+    chains = [list(s) for s in strokes if len(s) >= 2]
+    ends = {}
+    for i, c in enumerate(chains):
+        for e in (0, -1): ends.setdefault(key(c[e]), []).append(i)
+    alive = [True] * len(chains)
+    def take(i):
+        alive[i] = False
+        for e in (0, -1):
+            lst = ends[key(chains[i][e])]
+            if i in lst: lst.remove(i)
+    out = []
+    for i in range(len(chains)):
+        if not alive[i]: continue
+        take(i); cur = chains[i]
+        for side in (1, 0):                               # grow forward, then backward
+            while True:
+                k = key(cur[-1] if side else cur[0]); cand = ends.get(k, [])
+                if len(cand) != 1: break                  # dead end or junction
+                j = cand[0]; nxt = chains[j]; take(j)
+                if key(nxt[0]) != k: nxt = nxt[::-1]      # orient to continue from k
+                cur = cur + nxt[1:] if side else nxt[::-1][:-1] + cur
+        closed = len(cur) > 3 and key(cur[0]) == key(cur[-1])
+        pts = _simplify(cur, tol)
+        if closed and key(pts[0]) != key(pts[-1]): pts.append(pts[0])
+        out.append(pts)
+    return out
+
+def path_data(strokes, ox, oy):
+    """SVG path data for a list of strokes, coordinates relative to (ox, oy), 0.01 mm integers."""
+    parts = []
+    for s in strokes:
+        pts = [(round(x-ox), round(y-oy)) for x, y in s]
+        parts.append('M' + ' '.join(f'{x} {y}' for x, y in pts[:1]) + 'L' + ' '.join(f'{x} {y}' for x, y in pts[1:]))
+    return ''.join(parts)
+
 def emit_svg(strokes, texts, ox, oy, W, H, snaps=()):
     o = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" '
          f'width="{W//12}" height="{H//12}">',
-         '<g fill="none" stroke="black" stroke-width="14" stroke-linejoin="round" stroke-linecap="round">']
-    for s in strokes:
-        o.append('<polyline points="%s"/>' % " ".join(f"{x-ox},{y-oy}" for x, y in s))
-    o.append('</g>')
+         f'<path fill="none" stroke="black" stroke-width="14" stroke-linejoin="round" stroke-linecap="round" '
+         f'd="{path_data(merge_strokes(strokes), ox, oy)}"/>']
     for (x, y, s, h, al) in texts:
         anc = 'end' if al & 6 == 2 else 'middle' if al & 6 == 6 else 'start'
         base = (y-oy) + (0 if (al & 0x18) == 8 else h*0.85)
@@ -230,6 +287,11 @@ def centroid(s):
 # (even long, straight ones) never reach the cell border -> no false cuts.
 CLUSTER_THR = 0.012       # point distance (fraction of sheet width) below which strokes are connected
 SUPPORT_PALETTES = {'STATMAT1': 'flat', 'RUEHREN-1': 'flat', 'HEIZEN-1': 'bowl'}   # lab jacks, stirrers, mantles
+# palettes whose devices are vessels that can hold a liquid fill (MINILAB left out for now:
+# its closed screw caps and instrument boxes would be "filled" too)
+FILL_PALETTES = {'BECHERGL', 'DESTIL-1', 'DEWARGEF', 'EINLEIT1', 'ERLENMEY', 'EXTRAKT1', 'FLASCHEN',
+                 'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'MESSZYLI', 'MISCHZYL', 'SAMMELSU', 'STANDZYL',
+                 'TRENNEN1', 'TRENNEN2', 'TROPFTRI'}
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
 FRAME_TOL = 60          # 0.6 mm: tolerance for "touches the edge"
 MIN_SEG = 200           # 2 mm: shorter axis-parallel pieces are never frames
@@ -694,6 +756,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                                    else SUPPORT_PALETTES.get(pal))
             for sp in snaps:                                  # MINILAB parts use screw threads, not NS joints
                 if sp['type'] in ('socket', 'cone'): sp['system'] = 'MINILAB' if pal == 'MINILAB' else 'NS'
+            vessel = (fill.vessel_regions(local, snaps, W, H, hanging=pal in ('TROPFTRI', 'EXTRAKT1'))
+                      if pal in FILL_PALETTES and 'Kühler' not in name else None)   # coolant jackets are not vessels
             # stable ID: palette + cell position in the original (mm) + index within the cell
             dev_id = f"{pal.lower()}/{ci['rect'][0]/100:.0f}-{ci['rect'][1]/100:.0f}" + (f"-{j}" if len(devs) > 1 else '')
             svg = emit_svg(ds, dt, ox, oy, W, H, snaps)
@@ -703,6 +767,7 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                 fn = f"{pal}_{safe}_{k}.svg"; k += 1
             open(os.path.join(outdir, fn), 'w', encoding='utf-8').write(svg)
             manifest.append({'id': dev_id, 'file': fn, 'name': name, 'path': path, 'ns': ns or None, 'snaps': snaps,
+                             'fill': vessel,
                              'cell_mm': [round(v/100, 1) for v in ci['rect']],
                              'w_mm': round(W/100, 1), 'h_mm': round(H/100, 1), 'labels': [T[2] for T in dt]})
             n += 1

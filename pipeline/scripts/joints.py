@@ -137,6 +137,12 @@ def _classify(p, W, u, segs, at_bottom):
         return dict(rec, type='socket', dir=s['dir'], width=round(seat), ns=_nearest_ns(seat, NS_SOCKET),
                     x=round(x + s['n'][0]*d, 1), y=round(y + s['n'][1]*d, 1))
     def cone(s): return dict(rec, type='cone', dir=s['dir'], ns=_nearest_ns(W, NS_CONE))
+    def conical_seat(s):                                  # bead drop, then a gentle steady taper
+        ws = s['w']
+        i = next((k for k in range(1, min(len(ws), 13)) if ws[k] < 0.97 * ws[0]), None)
+        if i is None: return False
+        seat = ws[i + 1:i + 1 + int(0.6 * W / STEP)]
+        return len(seat) >= 3 and 0.90 <= seat[-1] / seat[0] <= 0.997
 
     if len(free) == 1:                                    # anchor on an outer edge of the device
         f = free[0]; o = sides[1] if f is sides[0] else sides[0]
@@ -144,7 +150,13 @@ def _classify(p, W, u, segs, at_bottom):
         if flush(o) and short(o) and widens(o): return socket_inner(o)
         if at_bottom and abs(f['dir'] - 90) <= 20 and _nearest_ns(W, NS_SOCKET) is None:
             return dict(rec, type='base', dir=90)
-        if bead(o): return dict(rec, type='socket', dir=f['dir'], ns=_nearest_ns(W, NS_SOCKET))
+        if bead(o):
+            sock = dict(rec, type='socket', dir=f['dir'], ns=_nearest_ns(W, NS_SOCKET))
+            # a socket opening downwards at the bottom is rare; demand the conical seat behind the
+            # bead, otherwise it is the rounded foot of a beaker, cylinder or bottle
+            if at_bottom and abs(f['dir'] - 90) <= 20:
+                return dict(sock, verified=True) if conical_seat(o) else dict(rec, type='base', dir=90)
+            return sock
         if flush(o) and short(o) and narrows(o): return cone(o)
         if at_bottom and abs(f['dir'] - 90) <= 20: return dict(rec, type='base', dir=90)
         if _nearest_ns(W, NS_SOCKET): return dict(rec, type='socket', dir=f['dir'], ns=_nearest_ns(W, NS_SOCKET))
@@ -224,8 +236,9 @@ def analyze(strokes, anchors, bbox=None, support=None):
         result.append(rec)
     for r in result:
         # anything at the very bottom pointing down is a standing surface, unless it is a cone
-        if r['type'] == 'socket' and r['dir'] is not None and abs(r['dir'] - 90) <= 20 and r['y'] >= bbox[3] - 80:
+        if r['type'] == 'socket' and r['dir'] is not None and abs(r['dir'] - 90) <= 20 and r['y'] >= bbox[3] - 80                 and not r.get('verified'):
             r.update(type='base', dir=90, ns=None)
+        r.pop('verified', None)
         # joint-like edges without a standard size are plain anchors
         if r['type'] in ('socket', 'cone') and r['ns'] is None:
             r['type'] = 'point'
