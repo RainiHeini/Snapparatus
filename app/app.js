@@ -12,7 +12,15 @@
   // ---------------------------------------------------------------- texts
   const T = {
     de: {
-      new: 'Neu', open: 'Öffnen', save: 'Speichern', undo: 'Rückgängig (Strg+Z)', redo: 'Wiederholen (Strg+Y)',
+      new: 'Neu', project: 'Speichern / Öffnen', projectTip: 'Speichern / Öffnen (Strg+S)', save: 'Speichern', open: 'Öffnen',
+      saveText: 'Lädt die Zeichnung als Datei herunter. So kannst du später daran weiterarbeiten.',
+      download: 'Herunterladen', openText: 'Datei hierher ziehen', pick: 'Datei auswählen …',
+      openHint: 'Snapparatus-Datei (.snapparatus.json) oder ein aus Snapparatus exportiertes SVG',
+      autosave: 'Außerdem merkt sich die App die aktuelle Zeichnung automatisch in diesem Browser.',
+      emptyNoSave: 'Die Zeichnung ist noch leer.',
+      newTitle: 'Neue Zeichnung?', newText: 'Die aktuelle Zeichnung wird verworfen.',
+      replaceTitle: 'Datei öffnen?', replaceText: 'Die aktuelle Zeichnung wird durch die Datei ersetzt.',
+      cancel: 'Abbrechen', saveFirst: 'Erst speichern', discard: 'Verwerfen', replace: 'Ersetzen', undo: 'Rückgängig (Strg+Z)', redo: 'Wiederholen (Strg+Y)',
       text: 'Text', arrow: 'Pfeil', templates: 'Vorlagen', soon: 'Kommt bald', export: 'Export', copy: 'Kopieren',
       exportSvg: 'Als SVG speichern', exportPng: 'Als PNG speichern', settings: 'Einstellungen',
       swapSides: 'Seiten tauschen', swapHint: 'Katalog rechts, Eigenschaften links', about: 'Über Snapparatus · Lizenzen',
@@ -44,7 +52,15 @@
       fileName: 'apparatur',
     },
     en: {
-      new: 'New', open: 'Open', save: 'Save', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y)',
+      new: 'New', project: 'Save / Open', projectTip: 'Save / Open (Ctrl+S)', save: 'Save', open: 'Open',
+      saveText: 'Downloads the drawing as a file, so you can continue working on it later.',
+      download: 'Download', openText: 'Drop a file here', pick: 'Choose file …',
+      openHint: 'Snapparatus file (.snapparatus.json) or an SVG exported from Snapparatus',
+      autosave: 'The app also keeps the current drawing automatically in this browser.',
+      emptyNoSave: 'The drawing is still empty.',
+      newTitle: 'New drawing?', newText: 'The current drawing will be discarded.',
+      replaceTitle: 'Open file?', replaceText: 'The current drawing will be replaced by the file.',
+      cancel: 'Cancel', saveFirst: 'Save first', discard: 'Discard', replace: 'Replace', undo: 'Undo (Ctrl+Z)', redo: 'Redo (Ctrl+Y)',
       text: 'Text', arrow: 'Arrow', templates: 'Templates', soon: 'Coming soon', export: 'Export', copy: 'Copy',
       exportSvg: 'Save as SVG', exportPng: 'Save as PNG', settings: 'Settings',
       swapSides: 'Swap sides', swapHint: 'Catalogue on the right, properties on the left', about: 'About Snapparatus · Licences',
@@ -496,11 +512,34 @@
     const p = part(id); p.x += 800; commit(before);
   }
   function newDrawing() {
-    if (state.parts.length && !confirm(t('confirmNew'))) return;
-    const before = snapshot();
-    state = { parts: [], links: [], next: 1, lineWidth: state.lineWidth }; selected = null; fileHandle = null;
-    commit(before); fit();
+    const clear = () => {
+      const before = snapshot();
+      state = { parts: [], links: [], next: 1, lineWidth: state.lineWidth }; selected = null;
+      commit(before); fit();
+    };
+    if (!state.parts.length) return clear();
+    modal(t('newTitle'), `<p>${t('newText')}</p>`, [
+      { label: t('cancel') }, { label: t('saveFirst'), cls: 'outline', fn: () => { projectDialog(); return false; } },
+      { label: t('discard'), cls: 'danger-fill', fn: clear }]);
   }
+
+  // ---------------------------------------------------------------- dialogs
+  // modal(title, html, [{label, cls, fn}]): a button closes the dialog unless its fn returns false
+  function modal(title, html, actions = []) {
+    closeMenus();
+    $('modalTitle').textContent = title; $('modalBody').innerHTML = html;
+    const box = $('modalActions'); box.innerHTML = '';
+    actions.forEach(a => {
+      const b = document.createElement('button');
+      b.className = 'btn ' + (a.cls || 'outline'); b.textContent = a.label;
+      b.onclick = () => { if (!a.fn || a.fn() !== false) closeModal(); };
+      box.appendChild(b);
+    });
+    $('modal').hidden = false;
+    (box.lastElementChild || $('modal').querySelector('.close')).focus();
+  }
+  function closeModal() { $('modal').hidden = true; }
+  $('modal').addEventListener('click', ev => { if (ev.target.id === 'modal') closeModal(); });
 
   // ---------------------------------------------------------------- export
   function exportSVG(withMeta = true) {
@@ -555,18 +594,45 @@
   const projectData = () => ({ format: 'snapparatus', version: 1, lineWidth: state.lineWidth,
     parts: state.parts.map(p => ({ id: p.id, dev: p.dev, x: Math.round(p.x), y: Math.round(p.y), a: +p.a.toFixed(2), f: p.f, fill: p.fill })),
     links: state.links });
-  let fileHandle = null;
-  async function saveProject() {
-    const text = JSON.stringify(projectData(), null, 1);
-    if (window.showSaveFilePicker) {
-      try {
-        if (!fileHandle) fileHandle = await window.showSaveFilePicker({ suggestedName: t('fileName') + '.snapparatus.json',
-          types: [{ description: 'Snapparatus', accept: { 'application/json': ['.json'] } }] });
-        const w = await fileHandle.createWritable(); await w.write(text); await w.close();
-        return toast(t('saved'));
-      } catch (e) { if (e.name === 'AbortError') return; fileHandle = null; }
+  let projectName = null;
+  function projectDialog(focusOpen = false) {
+    const empty = !state.parts.length, name = projectName || t('fileName');
+    modal(t('project'), `<div class="proj">
+      <section><h3>${t('save')}</h3><p>${t('saveText')}</p>
+        <div class="name"><input id="projName" value="${name.replace(/"/g, '&quot;')}" ${empty ? 'disabled' : ''}><span>.snapparatus.json</span></div>
+        ${empty ? `<p class="note">${t('emptyNoSave')}</p>` : `<button class="btn primary" id="dlBtn">${t('download')}</button>`}</section>
+      <section><h3>${t('open')}</h3>
+        <div class="drop" id="dropZone">${t('openText')}<button class="btn outline" id="pickBtn">${t('pick')}</button>
+          <span class="hint">${t('openHint')}</span></div></section>
+      <p class="note">${t('autosave')}</p></div>`);
+    if (!empty) {
+      $('dlBtn').onclick = () => {
+        projectName = ($('projName').value.trim() || t('fileName')).replace(/\.snapparatus\.json$|\.json$/i, '');
+        download(new Blob([JSON.stringify(projectData(), null, 1)], { type: 'application/json' }), projectName + '.snapparatus.json');
+        closeModal(); toast(t('saved'));
+      };
+      $('projName').addEventListener('keydown', e => { if (e.key === 'Enter') $('dlBtn').click(); });
     }
-    download(new Blob([text], { type: 'application/json' }), t('fileName') + '.snapparatus.json');
+    $('pickBtn').onclick = () => $('fileInput').click();
+    const dz = $('dropZone');
+    dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+    dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+    dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); if (e.dataTransfer.files[0]) openFile(e.dataTransfer.files[0]); });
+    (focusOpen || empty ? $('pickBtn') : $('dlBtn')).focus();
+  }
+  async function openFile(f) {
+    let data;
+    try {
+      const text = await f.text();
+      if (text.trimStart().startsWith('<')) {             // exported SVG with the project embedded
+        const m = text.match(/<metadata id="snapparatus">([\s\S]*?)<\/metadata>/);
+        data = JSON.parse(m[1].replace(/&lt;/g, '<').replace(/&amp;/g, '&'));
+      } else data = JSON.parse(text);
+      if (!data || data.format !== 'snapparatus') throw new Error('format');
+    } catch (e) { closeModal(); return toast(t('openFailed')); }
+    const go = () => { loadProject(data); projectName = f.name.replace(/\.snapparatus\.json$|\.json$|\.svg$/i, ''); };
+    if (!state.parts.length) { closeModal(); return go(); }
+    modal(t('replaceTitle'), `<p>${t('replaceText')}</p>`, [{ label: t('cancel') }, { label: t('replace'), cls: 'primary', fn: go }]);
   }
   function loadProject(data) {
     if (!data || data.format !== 'snapparatus' || !Array.isArray(data.parts)) throw new Error('format');
@@ -576,16 +642,8 @@
     selected = null; commit(before); fit();
     if (known.length < data.parts.length) toast(t('unknownDevices', data.parts.length - known.length));
   }
-  $('fileInput').addEventListener('change', async ev => {
-    const f = ev.target.files[0]; ev.target.value = ''; if (!f) return;
-    try {
-      const text = await f.text();
-      if (text.trimStart().startsWith('<')) {             // exported SVG with the project embedded
-        const m = text.match(/<metadata id="snapparatus">([\s\S]*?)<\/metadata>/);
-        loadProject(JSON.parse(m[1].replace(/&lt;/g, '<').replace(/&amp;/g, '&')));
-      } else loadProject(JSON.parse(text));
-      fileHandle = null;
-    } catch (e) { toast(t('openFailed')); }
+  $('fileInput').addEventListener('change', ev => {
+    const f = ev.target.files[0]; ev.target.value = ''; if (f) openFile(f);
   });
 
   // ---------------------------------------------------------------- catalogue
@@ -762,7 +820,7 @@
   }
   function closeMenus() { $('exportMenu').hidden = true; $('settingsMenu').hidden = true; }
   const ACTIONS = {
-    new: newDrawing, open: () => $('fileInput').click(), save: saveProject, undo, redo,
+    new: newDrawing, project: () => projectDialog(), closeModal, undo, redo,
     exportmenu: () => { const m = $('exportMenu'), h = m.hidden; closeMenus(); m.hidden = !h; },
     settings: () => { const m = $('settingsMenu'), h = m.hidden; closeMenus(); m.hidden = !h; },
     exportSvg: () => { closeMenus(); exportSvgFile(); }, exportPng: () => { closeMenus(); exportPng(); },
@@ -782,18 +840,19 @@
     if (!ev.target.closest('.menu-wrap')) closeMenus();
   });
   document.addEventListener('keydown', ev => {
+    if (ev.key === 'Escape' && !$('modal').hidden) { closeModal(); return; }     // also from inside a text field
     const typing = /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName);
     const mod = ev.ctrlKey || ev.metaKey, k = ev.key.toLowerCase();
     if (mod && k === 'z' && !ev.shiftKey) { ev.preventDefault(); undo(); }
     else if (mod && (k === 'y' || (k === 'z' && ev.shiftKey))) { ev.preventDefault(); redo(); }
-    else if (mod && k === 's') { ev.preventDefault(); saveProject(); }
-    else if (mod && k === 'o') { ev.preventDefault(); $('fileInput').click(); }
+    else if (mod && k === 's') { ev.preventDefault(); projectDialog(); }
+    else if (mod && k === 'o') { ev.preventDefault(); projectDialog(true); }
     else if (typing) return;
     else if (mod && k === 'c') { ev.preventDefault(); copyImage(); }
     else if (k === 'delete' || k === 'backspace') { ev.preventDefault(); deleteSelected(); }
     else if (k === 'r') rotateSetup(ev.shiftKey ? -15 : 15);
     else if (k === 'm') mirrorSetup();
-    else if (k === 'escape') { if (!$('aboutDialog').hidden) return hideAbout(); selected = null; renderOverlay(); renderProps(); closeMenus(); }
+    else if (k === 'escape') { if (!$('modal').hidden) return closeModal(); if (!$('aboutDialog').hidden) return hideAbout(); selected = null; renderOverlay(); renderProps(); closeMenus(); }
   });
 
   // ---------------------------------------------------------------- start

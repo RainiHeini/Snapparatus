@@ -10,8 +10,7 @@
   <header class="top">
     <div class="logo"><span class="mark"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6L4.5 18.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/></svg></span>Snapparatus</div>
     <button class="btn" data-act="new"><svg viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg><span data-t="new"></span></button>
-    <button class="btn" data-act="open"><svg viewBox="0 0 24 24"><path d="M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span data-t="open"></span></button>
-    <button class="btn" data-act="save"><svg viewBox="0 0 24 24"><path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h8"/><path d="M7 21v-7h10v7"/></svg><span data-t="save"></span></button>
+    <button class="btn" data-act="project" data-tt="projectTip"><svg viewBox="0 0 24 24"><path d="M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M7 3v6h8"/><path d="M7 21v-7h10v7"/></svg><span data-t="project"></span></button>
     <span class="sep"></span>
     <button class="btn ico" data-act="undo" data-tt="undo"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
     <button class="btn ico" data-act="redo" data-tt="redo"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H10a6 6 0 0 0 0 12h3"/></svg></button>
@@ -90,6 +89,15 @@
       <button class="btn ico close" data-act="closeAbout"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
       <h2 id="aboutTitle">Snapparatus</h2>
       <div id="aboutBody"></div>
+    </div>
+  </div>
+
+  <div class="dialog-back" id="modal" hidden>
+    <div class="dialog small" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <button class="btn ico close" data-act="closeModal"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      <h2 id="modalTitle"></h2>
+      <div id="modalBody"></div>
+      <div class="dialog-actions" id="modalActions"></div>
     </div>
   </div>
 

@@ -167,3 +167,20 @@ button { font: inherit; color: inherit; }
                      font-size: 12.5px; line-height: 1.5; }
 .dialog .close { position: absolute; right: 12px; top: 12px; }
 .dialog a { color: var(--accent); }
+
+/* small dialogs: confirm, save / open */
+.dialog.small { width: min(460px, calc(100vw - 32px)); }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.dialog-actions:empty { display: none; }
+.btn.danger-fill { background: var(--danger); color: #fff; font-weight: 600; }
+.btn.danger-fill:hover { background: #9a3627; }
+.proj section { padding: 12px 0; border-top: 1px solid var(--line); }
+.proj section:first-child { border-top: 0; padding-top: 4px; }
+.proj h3 { margin: 0 0 8px !important; }
+.proj .name { display: flex; align-items: center; gap: 4px; margin: 8px 0 10px; }
+.proj .name input { flex: 1; min-width: 0; font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 7px; }
+.proj .name span { color: var(--mute); font-size: 12px; }
+.drop { border: 2px dashed var(--line); border-radius: 10px; padding: 16px; text-align: center; color: var(--mute);
+        display: flex; flex-direction: column; align-items: center; gap: 8px; transition: border-color .1s, background .1s; }
+.drop.over { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); }
+.proj .note { margin-top: 10px; font-size: 12px; color: var(--mute); }
