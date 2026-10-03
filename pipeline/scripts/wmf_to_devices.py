@@ -294,6 +294,21 @@ FILL_PALETTES = {'BECHERGL', 'DESTIL-1', 'DEWARGEF', 'EINLEIT1', 'ERLENMEY', 'EX
                  'TRENNEN1', 'TRENNEN2', 'TROPFTRI'}
 # palettes made of separate tables where the title stands only above the first one
 NAME_PREFIX = {'KRUEMM': 'Krümmer (Bogenstücke)'}
+# devices without any heading in the original, named by hand (stable ID -> catalogue path).
+# GEFSYMB holds the old EU hazard symbols (pre-GHS) in two rows; the pairs Xn/Xi, F/F+ and T/T+
+# share one pictogram, the original only told them apart by the code letter.
+NAMES_BY_ID = {
+    'gefsymb/1-1': ['Gefahrensymbole (alt, vor GHS)', 'Gesundheitsschädlich (Xn)'],
+    'gefsymb/7-1': ['Gefahrensymbole (alt, vor GHS)', 'Ätzend (C)'],
+    'gefsymb/13-1': ['Gefahrensymbole (alt, vor GHS)', 'Explosionsgefährlich (E)'],
+    'gefsymb/19-1': ['Gefahrensymbole (alt, vor GHS)', 'Leichtentzündlich (F)'],
+    'gefsymb/25-1': ['Gefahrensymbole (alt, vor GHS)', 'Giftig (T)'],
+    'gefsymb/1-7': ['Gefahrensymbole (alt, vor GHS)', 'Reizend (Xi)'],
+    'gefsymb/7-7': ['Gefahrensymbole (alt, vor GHS)', 'Umweltgefährlich (N)'],
+    'gefsymb/13-7': ['Gefahrensymbole (alt, vor GHS)', 'Brandfördernd (O)'],
+    'gefsymb/19-7': ['Gefahrensymbole (alt, vor GHS)', 'Hochentzündlich (F+)'],
+    'gefsymb/25-7': ['Gefahrensymbole (alt, vor GHS)', 'Sehr giftig (T+)'],
+}
 # vessel palettes where a missing bottom anchor is added at the lowest point
 ADD_BASE_PALETTES = {'KOLB-1H', 'KOLB-MH1', 'KOLB-MH2', 'FLASCHEN', 'ERLENMEY', 'BECHERGL', 'TRENNEN1'}
 MERGE_GAP = 0.006         # bounding-box gap (fraction of sheet width) below which parts are ONE device
@@ -823,6 +838,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                       if pal in FILL_PALETTES and 'Kühler' not in name else None)   # coolant jackets are not vessels
             # stable ID: palette + cell position in the original (mm) + index within the cell
             dev_id = f"{pal.lower()}/{ci['rect'][0]/100:.0f}-{ci['rect'][1]/100:.0f}" + (f"-{j}" if len(devs) > 1 else '')
+            if dev_id in NAMES_BY_ID:
+                path = NAMES_BY_ID[dev_id]; name = 'Gefahrensymbol ' + path[-1]
             svg = emit_svg(ds, dt, ox, oy, W, H, snaps)
             safe = fn_safe(name)
             fn = f"{pal}_{safe}.svg"; k = 1

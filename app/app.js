@@ -665,9 +665,9 @@
   const thumb = d => `<svg viewBox="${-d.w * 0.04} ${-d.h * 0.04} ${d.w * 1.08} ${d.h * 1.08}" preserveAspectRatio="xMidYMid meet">` +
     d.svg.replace('<path ', '<path vector-effect="non-scaling-stroke" style="stroke-width:1.1px" ') + '</svg>';
   function subKey(d) {                                  // coarse group within a category, from the catalogue path
-    const words = d.path[0].split(' '), out = [];
+    const head = d.path[0] || d.name, words = head.split(' '), out = [];
     for (const w of words) { if (/^\d|^NS$|mL$|Liter$/.test(w) || /^\(/.test(w)) break; out.push(w); }
-    return out.join(' ') || d.path[0];
+    return out.join(' ') || head;
   }
   function renderRail() {
     const rail = $('rail'); rail.innerHTML = '';
