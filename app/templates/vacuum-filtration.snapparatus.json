@@ -1,0 +1,68 @@
+{
+ "format": "snapparatus",
+ "version": 1,
+ "lineWidth": "normal",
+ "parts": [
+  {
+   "id": 1,
+   "dev": "trennen1/25-21-0",
+   "x": -2731,
+   "y": -929,
+   "a": 0,
+   "f": false,
+   "fill": {
+    "on": true,
+    "level": 20,
+    "color": "#7cc4e8"
+   }
+  },
+  {
+   "id": 2,
+   "dev": "trennen1/25-21-2",
+   "x": -2110,
+   "y": -1315,
+   "a": 0,
+   "f": false,
+   "fill": null
+  },
+  {
+   "id": 3,
+   "dev": "trennen1/25-21-1",
+   "x": -2270,
+   "y": -2471,
+   "a": 0,
+   "f": false,
+   "fill": null
+  },
+  {
+   "id": 4,
+   "dev": "adapter/161-7",
+   "x": 210,
+   "y": -426,
+   "a": 90,
+   "f": false,
+   "fill": null
+  }
+ ],
+ "links": [
+  {
+   "p1": 2,
+   "j1": 0,
+   "p2": 1,
+   "j2": 0
+  },
+  {
+   "p1": 3,
+   "j1": 0,
+   "p2": 2,
+   "j2": 1
+  },
+  {
+   "p1": 4,
+   "j1": 0,
+   "p2": 1,
+   "j2": 1
+  }
+ ],
+ "notes": []
+}
