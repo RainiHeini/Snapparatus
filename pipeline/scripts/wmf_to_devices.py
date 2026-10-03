@@ -1028,8 +1028,8 @@ def extract_grid(path, outdir, min_geom=10, cdw_path=None):
                                   'width': None, 'ns': None, 'added': True})
             vessel = fill.vessel_regions(local, snaps, W, H, hanging=hanging) if fillable else None
             svg = emit_svg(ds, dt, ox, oy, W, H, snaps)
-            if dev_id in RUBBER_RING:                     # rubber is opaque: neck and stem disappear behind it
-                svg = svg.replace('fill="none"', 'fill="#fff"', 1)
+            if dev_id in RUBBER_RING:                     # grey rubber, opaque: neck and stem disappear behind it
+                svg = svg.replace('fill="none"', 'fill="#a3a9ad"', 1)
             safe = fn_safe(name)
             fn = f"{pal}_{safe}.svg"; k = 1
             while os.path.exists(os.path.join(outdir, fn)):
